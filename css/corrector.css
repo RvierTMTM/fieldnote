@@ -1,0 +1,31 @@
+/* corrector.css — 사진 보정 창(SA-D, js/corrector.js). 사진이 잘 보이게 바탕은 늘 어둡게 둔다. */
+.cr{flex:1;display:flex;flex-direction:column;width:100%;height:100%;min-height:0;background:#0f1319;color:#f4f6f9;
+  padding-bottom:env(safe-area-inset-bottom);overscroll-behavior:contain}
+.cr-h{flex:none;display:flex;align-items:center;gap:.5rem;padding:.55rem .7rem .3rem;padding-top:calc(.55rem + env(safe-area-inset-top))}
+.cr-h b{flex:1;font-size:1.1rem}
+.cr .x{flex:none;min-width:2.8rem;min-height:2.6rem;border:2px solid #f4f6f9;border-radius:8px;color:#fff;font-weight:700;text-align:center}
+.cr-hint{flex:none;font-size:.85rem;color:#c9d2de;padding:0 .8rem .4rem;min-height:2.5em}
+.cr-stage{position:relative;flex:1;min-height:12rem;overflow:hidden;background:#14181f;touch-action:none;user-select:none;-webkit-user-select:none}
+.cr-cv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;-webkit-touch-callout:none}
+.cr-loupe{position:absolute;top:10px;left:10px;width:128px;height:128px;border-radius:50%;border:3px solid #fff;
+  box-shadow:0 2px 12px rgba(0,0,0,.7);pointer-events:none;background:#14181f}
+.cr-loupe.r{left:auto;right:10px}
+.cr-busy{position:absolute;inset:0;background:rgba(10,13,18,.75);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.7rem;text-align:center;padding:1rem}
+.cr-bar{width:65%;max-width:18rem;height:.55rem;border-radius:99px;background:#334055;overflow:hidden}
+.cr-bar i{display:block;height:100%;width:0;background:#5a96f0;transition:width .15s}
+.cr-tools{flex:none;display:flex;gap:.4rem;padding:.5rem .6rem 0}
+.cr-tools button{flex:1;min-width:0;min-height:2.9rem;border:2px solid #6b7a90;border-radius:10px;background:#1e2632;color:#fff;
+  font-weight:700;font-size:.92rem;text-align:center;padding:.2rem .3rem}
+.cr-tools button.on{background:var(--blue);border-color:var(--blue)}
+.cr-tilt{flex:none;display:flex;align-items:center;gap:.4rem;padding:.5rem .6rem 0}
+.cr-tilt span{flex:none;font-size:.9rem;font-weight:700}
+.cr-tilt input{flex:1;min-width:0;height:2.6rem;accent-color:#5a96f0}
+.cr-tilt button{flex:none;min-width:2.6rem;min-height:2.6rem;border:2px solid #6b7a90;border-radius:10px;color:#fff;font-weight:700;text-align:center}
+.cr-tilt .val{min-width:4.3rem;font-variant-numeric:tabular-nums}
+.cr-tilt.off{opacity:.4}
+.cr-foot{flex:none;padding:.6rem .6rem .7rem}
+.cr-foot .btn{margin-top:0}
+.cr .btn.sub{background:#1e2632;border-color:#c9d2de;color:#fff}
+.cr .btn.pri{background:var(--red);border-color:var(--red);color:#fff}
+.crp-img{position:relative;flex:1;min-height:0;overflow:hidden;background:#14181f}
+.crp-img img{position:absolute;inset:.5rem;width:calc(100% - 1rem);height:calc(100% - 1rem);object-fit:contain;display:block}

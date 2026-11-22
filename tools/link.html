@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>실사업무 링크 만들기</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;background:#e9ebef;color:#111a26;font-size:17px;line-height:1.5;padding:16px 12px 60px}
+main{max-width:760px;margin:0 auto}
+h1{font-size:1.3em;border-bottom:2px solid #ed1c24;padding-bottom:6px;margin-bottom:8px}
+h2{font-size:1.05em;margin:22px 0 8px}
+p.lead{color:#2f3b4c;font-size:.92em;margin-bottom:6px}
+.box{background:#fff;border:1px solid #b9c0cb;border-radius:12px;padding:12px;margin-bottom:10px}
+label{display:block;font-weight:700;font-size:.92em;margin:8px 0 3px}
+input,select,textarea,button{font:inherit;color:inherit}
+input[type=text],input[type=date],input[type=url],select,textarea{width:100%;border:2px solid #b9c0cb;border-radius:8px;padding:7px 9px;background:#f4f5f7}
+textarea{min-height:5.2em;word-break:break-all}
+.line{display:flex;gap:8px;align-items:center;margin-top:6px}
+.line input[type=text]{flex:1}
+.line select{flex:0 0 9.5em}
+button{border:2px solid #2f3b4c;border-radius:8px;padding:7px 12px;background:#fff;font-weight:700;cursor:pointer}
+button.pri{border-color:#ed1c24;background:rgba(237,28,36,.12);color:#bd161c}
+button.x{flex:none;padding:7px 10px}
+.site{border:2px solid #2f3b4c;border-radius:12px;padding:10px;margin-top:10px;background:#f4f5f7}
+.site>.line>input{font-weight:700}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#qr{max-width:340px;margin:10px auto 0}
+#qr svg{display:block;width:100%;height:auto;border:1px solid #b9c0cb}
+.msg{font-weight:700;margin-top:8px}
+.msg.bad{color:#bd161c}
+.msg.ok{color:#0b6e4f}
+small{color:#2f3b4c}
+</style>
+</head>
+<body>
+<main>
+  <h1>실사업무 링크 만들기</h1>
+  <p class="lead">실사 정보를 넣으면 실사자에게 보낼 링크와 QR이 만들어집니다. 넣은 내용은 링크의 # 뒤에만 담기고 서버로 전송되지 않으며, 이 페이지에도 저장되지 않습니다.</p>
+
+  <h2>이미 보낸 실사를 고칠 때</h2>
+  <div class="box">
+    <label for="old">전에 만든 링크 붙여넣기 (같은 실사 ID·현장 ID·장소 ID를 그대로 쓰게 됩니다)</label>
+    <textarea id="old" placeholder="https://…#p=…"></textarea>
+    <div class="line"><button type="button" id="loadOld">불러오기</button><span id="oldMsg" class="msg"></span></div>
+    <p class="lead" style="margin-top:8px">같은 실사 ID의 링크를 다시 받으면, 실사자 폰에서는 기존 입력은 그대로 두고 새 현장·장소만 추가됩니다. 링크에서 뺀 장소도 폰에서는 지워지지 않습니다.</p>
+  </div>
+
+  <h2>실사 정보</h2>
+  <div class="box">
+    <label for="name">실사명</label>
+    <input type="text" id="name" placeholder="예: 예시 실사" autocomplete="off">
+    <div class="two">
+      <div><label for="from">실사 시작일</label><input type="date" id="from"></div>
+      <div><label for="to">실사 종료일</label><input type="date" id="to"></div>
+    </div>
+    <label for="pid">실사 ID <small>(자동. 새 실사로 보내려면 "새 ID")</small></label>
+    <div class="line"><input type="text" id="pid" autocomplete="off"><button type="button" id="newPid">새 ID</button></div>
+    <label for="app">앱 주소</label>
+    <input type="url" id="app" autocomplete="off">
+  </div>
+
+  <h2>현장과 장소</h2>
+  <div id="sites"></div>
+  <div class="line"><button type="button" id="addSite">+ 현장 추가</button></div>
+
+  <h2>링크와 QR</h2>
+  <div class="box">
+    <div class="line"><button type="button" class="pri" id="make">링크 만들기</button><button type="button" id="copy" disabled>링크 복사</button></div>
+    <p id="msg" class="msg"></p>
+    <label for="out">링크</label>
+    <textarea id="out" readonly></textarea>
+    <div id="qr"></div>
+  </div>
+</main>
+<script type="module" src="link-tool.js"></script>
+</body>
+</html>

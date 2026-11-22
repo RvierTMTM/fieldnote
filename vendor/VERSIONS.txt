@@ -1,0 +1,13 @@
+vendor/ — 앱이 오프라인에서 쓰는 외부 라이브러리 (CDN 없이 이 폴더 파일만 읽는다)
+
+pptxgen.bundle.min.js
+  PptxGenJS 4.0.1   npm: pptxgenjs@4.0.1  (dist/pptxgen.bundle.js, 2025-06-25 빌드)
+                    npm integrity sha512-TeJISr8wouAuXw4C1F/mC33xbZs/FuEG6nH9FG1Zj+nuPcGMP5YRHl6X+j3HSUnS1f3at6k75ZZXPMZlA5Lj9A==
+                    라이선스 MIT → LICENSE-pptxgenjs.txt
+  JSZip 3.10.1      위 번들 안에 들어 있다(window.JSZip 으로도 쓸 수 있음). 따로 두지 않음(중복 없음)
+                    라이선스 MIT 또는 GPLv3 중 선택 → LICENSE-jszip.md (이 앱은 MIT 로 쓴다)
+  pako 1.0.x        JSZip 배포본 안에 들어 있음. 라이선스 MIT → LICENSE-pako.txt (pako@1.0.11 에서 복사)
+  바꾼 것: 맨 끝 sourceMappingURL 한 줄을 지우고 맨 앞에 출처 주석을 붙였다. 나머지는 원본 그대로.
+
+부르는 곳: js/export.js loadLib() — "저장 후 내보내기"를 누를 때만 <script> 로 읽는다.
+불러오기(zip 읽기)와 zip 만들기는 js/zipfile.js 가 직접 하므로 이 파일이 필요 없다.
