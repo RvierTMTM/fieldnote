@@ -4,7 +4,7 @@
    · 앱 파일을 고치면 VERSION 을 반드시 올린다 — 그래야 폰이 새 파일을 다시 받는다.
    · 새 js/css/그림 파일을 추가하면 FILES 에도 넣는다(안 넣어도 한 번 열면 담기지만, 오프라인 첫 사용에 빠질 수 있다).
    · 사진·입력값은 여기서 다루지 않는다(IndexedDB 에 있다). */
-const VERSION = 'v0.31'; // js/version.js 의 APP_VERSION 과 같은 값
+const VERSION = 'v0.32'; // js/version.js 의 APP_VERSION 과 같은 값
 const CACHE = 'fieldnote-' + VERSION;
 const FILES = [
   './',
@@ -92,6 +92,7 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
   if (!url.pathname.startsWith(new URL('./', self.location).pathname)) return;
+  if (url.searchParams.has('fresh')) return;      // v0.32: 배포판 버전 확인(js/version.js?fresh=…)은 저장본을 쓰지 않고 네트워크로
 
   event.respondWith((async () => {
     const cache = await caches.open(CACHE);

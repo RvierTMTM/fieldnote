@@ -3,6 +3,8 @@
    · 새 버전: 서비스 워커가 새 파일을 받아 기다리는 상태(waiting)가 되면 화면 위에 "새 버전이 있습니다 · 새로 고침" 줄.
      누르면 입력 중인 글자를 먼저 저장하고 waiting 워커에 { type:'SKIP_WAITING' } → controllerchange 뒤 새로 고침.
      누르기 전에는 절대 스스로 새로 고치지 않는다(입력 중 끊김 방지). sw.js 는 이 메시지를 받아 skipWaiting() 해야 한다.
+   · v0.32: 실사 선택 화면 CI 오른쪽에 버전, 새 버전이 있으면 "업데이트 필요" 버튼(#verupd). 새 버전은 ① 워커가 새 파일을 받아 기다림(waiting)
+     ② 배포판 js/version.js?fresh= (sw.js 가 저장본을 안 씀)의 버전이 더 높음 — 둘 중 하나. 누르면 applyUpdate(없으면 새 파일을 받을 때까지 기다림).
    · 화면 위 묶음(#top) 높이를 CSS 변수 --toph 에 넣는다(.saved-top 이 그 아래에 붙어 있게).
    · 앱 안 브라우저(카톡 등)에서 실사 링크(#p=)를 열면, 링크를 받기 전에 "크롬으로 열기" 안내 화면을 먼저 띄운다(v0.30, inAppGate).
      기록은 브라우저마다 따로 저장되므로, 카톡 안에서 받으면 홈 화면 앱(크롬)에는 새 실사가 보이지 않는다.
@@ -34,6 +36,7 @@ import * as preview from './screens/preview.js';
 import * as settingsScreen from './screens/settings.js';
 import * as distribute from './screens/distribute.js';
 import { updateSideNav } from './sidenav.js';
+import { APP_VERSION } from './version.js';
 
 const $ = (id) => document.getElementById(id);
 let current = null;        // 지금 화면 객체
@@ -121,6 +124,7 @@ function applyScreen(screen, { keepScroll }) {
   fitText($('sub'));
   document.title = (s.title ? s.title + ' · ' : '') + '현장실사';
   $('brand').hidden = !s.brand;
+  if (s.brand) checkNewer();
   drawCrumbs(s.crumbs);
   const menu = $('amenu');
   const hasMenu = !!(s.menu && s.projectId);
@@ -215,14 +219,42 @@ async function handleLink(code) {
 let reloading = false;
 
 function showUpdateBar() {
+  showVerUpd();
   if (document.getElementById('upd')) return;
   const bar = h('button', { type: 'button', id: 'upd', class: 'upd', onclick: applyUpdate }, '새 버전이 있습니다 · 새로 고침');
   $('top').prepend(bar);
 }
 
+/* CI 옆 "업데이트 필요" (v0.32) */
+const verNum = (v) => String(v || '').replace(/^v/, '').split('.').map((x) => parseInt(x, 10) || 0);
+const newerThan = (a, b) => { const x = verNum(a), y = verNum(b); for (let i = 0; i < Math.max(x.length, y.length); i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); } return false; };
+function showVerUpd() { const b = $('verupd'); if (b) b.hidden = false; }
+let lastCheck = 0;
+async function checkNewer() {
+  if (!/^https?:$/.test(location.protocol) || Date.now() - lastCheck < 60000) return;
+  lastCheck = Date.now();
+  try {
+    const t = await (await fetch('js/version.js?fresh=' + Date.now(), { cache: 'no-store' })).text();
+    const m = t.match(/APP_VERSION\s*=\s*'([^']+)'/);
+    if (m && newerThan(m[1], APP_VERSION)) showVerUpd();
+  } catch (e) { /* 인터넷이 안 되면 건너뛴다 */ }
+  const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration().catch(() => null);
+  if (reg) reg.update().catch(() => {});
+}
+const waitWaiting = (reg, ms) => new Promise((res) => {
+  const t0 = Date.now();
+  const tick = () => { if (reg.waiting || Date.now() - t0 > ms) res(reg.waiting); else setTimeout(tick, 400); };
+  tick();
+});
+
 async function applyUpdate() {
   await flushPending().catch((e) => console.error(e));
   const reg = await navigator.serviceWorker.getRegistration().catch(() => null);
+  if (reg && !reg.waiting) {                            // 새 파일을 아직 안 받았으면 받을 때까지(최대 60초)
+    const b = $('verupd'); if (b) { b.disabled = true; b.textContent = '받는 중…'; }
+    await reg.update().catch(() => {});
+    await waitWaiting(reg, 60000);
+  }
   reloading = true;
   if (reg && reg.waiting) {
     reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -255,6 +287,8 @@ async function boot() {
   onBeforeRender(flushPending);
   onBeforeRender(releaseUrls);
   $('more').addEventListener('click', () => openMore(current, { go, refresh }));
+  $('ver').textContent = APP_VERSION;
+  $('verupd').addEventListener('click', applyUpdate);
   $('m-routes').textContent = '케이블 경로';
   const top = $('top');
   const setTopH = () => document.documentElement.style.setProperty('--toph', top.getBoundingClientRect().height + 'px');   // 소수점까지(고정 줄과 사이에 틈이 안 생기게)

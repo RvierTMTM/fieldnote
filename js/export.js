@@ -588,12 +588,11 @@ async function importFile(file, ctx) {
   ctx.go('#/p/' + encodeURIComponent(r.projectId));
 }
 
-/** 자료복구 버튼 — 진짜 파일 칸을 버튼 위에 투명하게 덮어, 손가락이 파일 칸을 직접 누르게 한다.
-    (코드로 숨은 파일 칸을 대신 누르면 아티팩트 같은 보안 틀·일부 브라우저에서 막힌다) */
 /* ── 실사샘플 받기(v0.30) ─────────────────────────────────
    예시 실사 zip 은 앱(공개 깃허브)에 넣지 않고 구글 드라이브에 둔다. 버튼은 드라이브 "바로 내려받기" 주소를 새 창으로 열어(v0.31)
-   zip 이 다운로드 폴더에 바로 받아지게 하고(드라이브 앱·계정 고르기·압축 풀기 화면 없이), 받은 zip 은 사용자가 자료복구로 연다.
-   드라이브 공유 범위는 드라이브에서 정한다. 파일을 "새 버전 업로드"로 바꾸면 파일 ID·주소는 그대로다. */
+   zip 이 다운로드 폴더에 바로 받아지게 하고(드라이브 앱·계정 고르기 화면 없이), 받은 zip 은 사용자가 자료복구로 연다.
+   앱이 zip 을 직접 받아 바로 넣는 방식은 구글이 다른 사이트의 직접 받기(CORS)를 막아 쓸 수 없다(v0.32 시험, 배포판 주소에서도 막힘).
+   드라이브 공유 범위는 드라이브에서 정한다. 파일을 바꾸면 아래 ID 를 바꾼다. */
 const driveDownload = (id) => 'https://drive.google.com/uc?export=download&id=' + id;
 export const SAMPLES = [
   { label: '여수공장 실사샘플', sub: '사진 74장 · 9.4MB', url: driveDownload('1CzkLQx7gUuh3JblB3G6SvmDNE8zF-GnA') },
@@ -604,13 +603,15 @@ export async function openSamples() {
   const url = await sheet({ title: '실사샘플 받기', note: 'zip이 다운로드 폴더에 받아집니다. 받은 뒤 자료복구로 여세요.', items: SAMPLES.map((x) => ({ label: x.label, sub: x.sub, value: x.url })) });
   if (!url) return;
   window.open(url, '_blank', 'noopener');
-  await alertDialog('실사샘플 받기', 'zip 받기를 시작했습니다.\n압축은 풀지 말고, 자료복구 버튼에서\n다운로드 폴더의 zip 파일을 고르세요.');
+  await alertDialog('실사샘플 받기', 'zip 받기를 시작했습니다.\n· 압축은 풀지 마세요.\n· 다운로드 완료 알림의 \'열기\'는 누르지 마세요.\n· 이 앱의 자료복구 버튼에서 다운로드 폴더의 zip을 고르세요.');
 }
 
 export function sampleButton(label = '실사샘플 받기') {
   return h('button', { type: 'button', class: 'btn sub', onclick: () => openSamples().catch((e) => console.error(e)) }, label);
 }
 
+/** 자료복구 버튼 — 진짜 파일 칸을 버튼 위에 투명하게 덮어, 손가락이 파일 칸을 직접 누르게 한다.
+    (코드로 숨은 파일 칸을 대신 누르면 아티팩트 같은 보안 틀·일부 브라우저에서 막힌다) */
 export function importButton(ctx, label = '자료복구', cls = 'btn sub') {
   const input = h('input', { type: 'file', accept: '.zip,.json,application/zip,application/json', class: 'file-over', 'aria-label': label });
   input.addEventListener('change', async () => {

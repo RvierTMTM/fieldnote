@@ -102,7 +102,12 @@ a{color:inherit;text-decoration:none}
 
 /* 틀 */
 #app{max-width:45rem;margin:0 auto;min-height:100vh;background:var(--bg);display:flex;flex-direction:column}
-.brand{padding:.75rem 1rem 0}
+.brand{padding:.75rem 1rem 0;display:flex;align-items:center;gap:.6rem}
+.brand[hidden]{display:none}
+.brand .ver{font-size:var(--fs-s);color:var(--mut);font-variant-numeric:tabular-nums}
+.brand .verupd{min-height:2.75rem;padding:0 .8rem;border:0;border-radius:var(--rs);background:var(--card2);box-shadow:var(--sh1);color:var(--hot);font:inherit;font-size:var(--fs-s);font-weight:700;cursor:pointer}
+.brand .verupd:active{transform:translateY(2px);box-shadow:0 0 0 var(--edge)}
+.brand .verupd[hidden]{display:none}
 .brand img{display:block;height:1.9rem;width:auto;background:#fff;border-radius:var(--rs);padding:.3rem .55rem;box-sizing:content-box}
 #top{position:sticky;top:0;z-index:10;background:var(--bg)}
 .bar{padding:.75rem 1rem .5rem;display:flex;align-items:center;gap:.75rem}
