@@ -591,18 +591,20 @@ async function importFile(file, ctx) {
 /** 자료복구 버튼 — 진짜 파일 칸을 버튼 위에 투명하게 덮어, 손가락이 파일 칸을 직접 누르게 한다.
     (코드로 숨은 파일 칸을 대신 누르면 아티팩트 같은 보안 틀·일부 브라우저에서 막힌다) */
 /* ── 실사샘플 받기(v0.30) ─────────────────────────────────
-   예시 실사 zip 은 앱(공개 깃허브)에 넣지 않고 구글 드라이브에 둔다. 버튼은 드라이브 화면을 새 창으로 열 뿐이고,
-   받은 zip 은 사용자가 자료복구로 연다. 드라이브 공유 범위는 드라이브에서 정한다(링크 주소는 그대로). */
+   예시 실사 zip 은 앱(공개 깃허브)에 넣지 않고 구글 드라이브에 둔다. 버튼은 드라이브 "바로 내려받기" 주소를 새 창으로 열어(v0.31)
+   zip 이 다운로드 폴더에 바로 받아지게 하고(드라이브 앱·계정 고르기·압축 풀기 화면 없이), 받은 zip 은 사용자가 자료복구로 연다.
+   드라이브 공유 범위는 드라이브에서 정한다. 파일을 "새 버전 업로드"로 바꾸면 파일 ID·주소는 그대로다. */
+const driveDownload = (id) => 'https://drive.google.com/uc?export=download&id=' + id;
 export const SAMPLES = [
-  { label: '여수공장 실사샘플', sub: '사진 74장 · 9.4MB', url: 'https://drive.google.com/file/d/1CzkLQx7gUuh3JblB3G6SvmDNE8zF-GnA/view' },
-  { label: '대전공장 실사샘플', sub: '사진 없음 · 0.6MB', url: 'https://drive.google.com/file/d/1BLZbT0MBDOq_RUOq42Q7AUMwLvHWjAuA/view' },
+  { label: '여수공장 실사샘플', sub: '사진 74장 · 9.4MB', url: driveDownload('1CzkLQx7gUuh3JblB3G6SvmDNE8zF-GnA') },
+  { label: '대전공장 실사샘플', sub: '사진 43장 · 16.7MB', url: driveDownload('1Ghk8zqUAv5rLuQ_uxkgFYzw9NjnPtSCK') },
 ];
 
 export async function openSamples() {
-  const url = await sheet({ title: '실사샘플 받기', note: '드라이브에서 zip을 내려받은 뒤, 자료복구로 여세요.', items: SAMPLES.map((x) => ({ label: x.label, sub: x.sub, value: x.url })) });
+  const url = await sheet({ title: '실사샘플 받기', note: 'zip이 다운로드 폴더에 받아집니다. 받은 뒤 자료복구로 여세요.', items: SAMPLES.map((x) => ({ label: x.label, sub: x.sub, value: x.url })) });
   if (!url) return;
   window.open(url, '_blank', 'noopener');
-  await alertDialog('실사샘플 받기', '드라이브에서 zip을 내려받은 뒤\n자료복구 버튼으로 그 파일을 고르세요.');
+  await alertDialog('실사샘플 받기', 'zip 받기를 시작했습니다.\n압축은 풀지 말고, 자료복구 버튼에서\n다운로드 폴더의 zip 파일을 고르세요.');
 }
 
 export function sampleButton(label = '실사샘플 받기') {
