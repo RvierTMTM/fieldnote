@@ -7,7 +7,7 @@
      slideHtml(slide, { index, deck, ciUrl }) → string     장표 한 장(900px 폭 기준) HTML. deck = buildPreviewDeck 결과(하단 줄·크기).
         <img data-pid="사진 id"> 의 src 는 비워 둔다(화면 쪽에서 보이는 장표만 채운다).
      SLIDE_W                                                 장표 HTML 폭(px)
-   미리보기에만 넣는 표시: 빈 값(표 칸·글 속 '미입력', 사진 없음 칸)에 노란 칸 + 빨간 원 안 흰 '!'.
+   미리보기에만 넣는 표시: 빈 값(표 칸·글 속 '미입력', 표 칸 '사진 없음', 사진 없음 칸)에 노란 칸 + 빨간 원 안 흰 '!'.
    실제 PPT(js/pptx-build.js)에는 넣지 않는다. */
 import { buildPptx, TEAM_NAME } from './pptx-build.js';
 import { buildOutline, assignNames } from './zipname.js';
@@ -16,6 +16,7 @@ export const SLIDE_W = 900;
 const MISSING = '미입력';
 const CI_MARK = 'fnci:';
 const PHOTO_MARK = 'fnphoto:';
+const PHOTO_NONE = '사진 없음';
 let PX_PER_IN = SLIDE_W / 11.69;    // 장표 1인치 → px (buildPreviewDeck 가 PPT 크기로 다시 맞춘다)
 
 /* ── 기록만 하는 가짜 PptxGenJS ───────────────────────── */
@@ -151,6 +152,7 @@ function textHtml(it, missPhoto) {
   let st = box(o) + 'justify-content:' + (VALIGN[o.valign] || 'flex-start') + ';text-align:' + ALIGN(o.align) + ';'
     + 'font-size:' + fs + 'px;color:' + hex(o.color, '#222') + ';';
   if (o.bold) st += 'font-weight:700;';
+  if (o.wrap === false) st += 'white-space:nowrap;';       // 한 줄 고정(장표 제목)
   if (o.lineSpacing) st += 'line-height:' + Math.round(o.lineSpacing * PT() * 10) / 10 + 'px;';
   const m = typeof o.margin === 'number' ? Math.round(o.margin * PT() * 10) / 10 : 0;
   if (m) st += 'padding:0 ' + m + 'px;';
@@ -198,7 +200,7 @@ function tableHtml(it) {
       const cell = c && typeof c === 'object' ? c : { text: c };
       const co = cell.options || {};
       const t = cell.text == null ? '' : String(cell.text);
-      const miss = t === MISSING;
+      const miss = t === MISSING || t === PHOTO_NONE;      // 묶음 경로 표의 '사진' 줄도 빈 값
       let st = 'text-align:' + (co.align ? ALIGN(co.align) : 'center') + ';color:' + hex(co.color, '#333') + ';' + fillCss(co.fill);
       if (co.bold) st += 'font-weight:700;';
       if (co.border && co.border.color) st += 'border:' + Math.max(1, Math.round((co.border.pt || 0.75) * PT() * 10) / 10) + 'px solid ' + hex(co.border.color, '#d9d9d9') + ';';

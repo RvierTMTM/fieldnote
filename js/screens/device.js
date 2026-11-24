@@ -1,7 +1,8 @@
 /* screens/device.js — 장비 화면   라우트: #/p/:pid/dv/:id
    공개: render(ctx)
    들어 있는 것: 종류와 빠른 값 / 위치(U·선반·랙 바닥)·높이 / 사진 / 공통 칸(접어 둠) / 연결(업링크) /
-                FDF 행선지 줄(반복) / 연결 단말 대수 / 메모 / 이 장비 지우기 */
+                FDF 선번장 줄(반복, 데이터 키 fdfLines) / UTP 선번장 줄(패치판넬, 데이터 키 utpLines) / 연결 단말 대수 / 메모 / 이 장비 삭제(trash.requestDelete)
+   위 제목을 누르거나 더보기 → 이름 바꾸기 = Hostname 고치기(js/node-edit.js). 더보기 → 다른 곳으로 옮기기 = 다른 설치 지점으로. */
 import { h } from '../ui.js';
 import { val, deviceLabel, nameOf } from '../store.js';
 import { renderForm } from '../form.js';
@@ -90,7 +91,7 @@ export async function render(ctx) {
     { t: 'seg', k: 'viaConv', label: '컨버터', opts: VIA_CONVERTER, none: false },
 
     kind === 'FDF' ? {
-      t: 'rows', k: 'fdfLines', label: 'FDF 행선지', rowTitle: '행선지', addLabel: '+ 행선지 줄 추가', cols: [
+      t: 'rows', k: 'fdfLines', label: 'FDF 선번장', rowTitle: '선번', addLabel: '+ 선번 추가', cols: [
         { t: 'pick', k: 'dest', label: '행선지', customSub: '목록에 없거나 사업장 밖일 때', choices: () => placeChoices(project.id) },
         { t: 'text', k: 'range', label: '코어 구간', ph: '예: 1~12' },
         { t: 'num', k: 'used', label: '사용 코어', unit: '코어', none: true },
@@ -99,6 +100,16 @@ export async function render(ctx) {
         { t: 'text', k: 'labelText', label: '라벨 원문', ph: '라벨에 적힌 그대로' },
         { t: 'flag', k: 'unused', label: '미사용' },
         { t: 'photo', slot: 'photo', label: '사진' },
+      ],
+    } : null,
+
+    kind === '패치판넬' ? {
+      t: 'rows', k: 'utpLines', label: 'UTP 선번장', rowTitle: '선번', addLabel: '+ 선번 추가', cols: [
+        { t: 'text', k: 'range', label: '포트 구간', ph: '예: 1-24' },
+        { t: 'pick', k: 'dest', label: '연결처', customSub: '목록에 없거나 사업장 밖일 때', choices: () => placeChoices(project.id) },
+        { t: 'text', k: 'labelText', label: '라벨 원문', ph: '라벨에 적힌 그대로' },
+        { t: 'flag', k: 'unused', label: '미사용' },
+        { t: 'memo', k: 'memo', label: '메모', ph: '한 줄 메모 (안 써도 됨)' },
       ],
     } : null,
 
@@ -112,7 +123,7 @@ export async function render(ctx) {
   const del = h('button', {
     type: 'button', class: 'btn sub', style: 'margin-top:2rem',
     onclick: async () => { if (await requestDelete(scope)) ctx.go(scope.parentHref, { replace: true }); },
-  }, '이 장비 지우기');
+  }, '이 장비 삭제');
 
   const where = [];
   if (point) where.push(nameOf(point));

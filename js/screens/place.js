@@ -1,22 +1,23 @@
 /* screens/place.js — 장소 화면   라우트: #/p/:pid/pl/:id
    공개: render(ctx)
-   들어 있는 것: 장소 정보(종류·위치) / 전경 등 사진 칸 / 설치 지점 목록 / 공사 조건 / 자유 추가 /
+   들어 있는 것: 장소 정보(종류·위치) / 전경 등 사진 칸 / 설치 지점 목록 / NW공사 / 자유 추가 /
                 환경 / 문제·환경 표시 / VLAN 표 / 메모 / 완료 표시
    완료 표시가 바뀌면 js/notice.js 의 afterDoneChange(projectId) 를 부른다(SA-B: 완료 알림).
-   설치 지점 카드: 미작성이면 [지우기], 아니면 배지(빠진 값 "! 빠진 값 N" / 완료를 눌렀으면 "완료" / "완료 전"). */
+   설치 지점 카드: 배지(미작성 항목이 있으면 "! 미작성 항목 N" / 완료를 눌렀으면 "완료" / "완료 전", 빈 항목이면 배지 없음) + 오른쪽 [옮기기] [삭제].
+   머리말 부제: 동·층 중 장소 이름에 이미 들어 있는 것은 뺀다(store.locParts). NW공사 카드 "입력 N"은 숨긴 항목(기존 트레이 없음의 폭·여유)을 세지 않는다. */
 import { h, sheet, promptText } from '../ui.js';
-import { children, addNode, setField, nameOf, val, photoKeys, photoCounter, missingItems, projectNodes, isBlankNode } from '../store.js';
+import { children, addNode, setField, nameOf, val, photoKeys, photoCounter, missingItems, projectNodes, isBlankNode, usable, locParts, condHiddenKeys } from '../store.js';
 import { renderForm } from '../form.js';
 import { afterDoneChange } from '../notice.js';
 import { PLACE_KINDS, PROBLEM_TAGS, ENV_TAGS, YES_NO, PLACE_ENV_ITEMS, POINT_FORMS, EXTRA_TAGS } from '../options.js';
-import { P, load, hrefOf, crumbsOf, card, addButton, blankCard, doneBadge, savedTop } from './common.js';
+import { P, load, hrefOf, crumbsOf, card, addButton, blankCard, doneBadge, savedTop, nodeDel } from './common.js';
 
 async function addPointFlow(place, points, ctx) {
   const form = await sheet({ title: '어떻게 설치되어 있나요?', items: POINT_FORMS.map((f) => ({ label: f, value: f })) });
   if (form === undefined) return;
   const racks = points.filter((p) => val(p, 'form') === '랙').length;
   const suggest = form === '랙' ? 'R-' + String(racks + 1).padStart(2, '0') : form;
-  const name = await promptText({ title: '이름', label: '랙 번호나 이름을 넣어 주세요. 문패·라벨에 적힌 대로 쓰면 좋습니다.', value: suggest, ok: '추가' });
+  const name = await promptText({ title: '이름', label: form === '랙' ? '랙 번호나 이름을 넣어 주세요. 문패·라벨에 적힌 대로 쓰면 좋습니다.' : '설치 지점 이름을 넣어 주세요.', value: suggest, ok: '추가' });
   if (!name) return;
   const point = await addNode(place, 'point', { name, form });
   ctx.go(hrefOf(point));
@@ -51,13 +52,14 @@ export async function render(ctx) {
     const devices = nodes.filter((n) => n.type === 'device' && n.parentId === p.id).length;
     const lacks = miss.filter((m) => m.node.id === p.id).map((m) => m.text);
     const bits = [form];
-    if (val(p, 'system')) bits.push(val(p, 'system') + '계통');
+    if (usable(val(p, 'system'))) bits.push(usable(val(p, 'system')) + '계통');   // "확인 못 함"이면 이 조각을 뺀다
     bits.push('장비 ' + devices, '사진 ' + count(p.path));
-    const right = doneBadge(lacks.length ? '빠진 값 ' + lacks.length : null, val(p, 'done') === true);
-    return card({ href: hrefOf(p), title: nameOf(p), sub: bits.filter(Boolean).join(' · '), right });
+    const right = doneBadge(lacks.length ? '미작성 항목 ' + lacks.length : null, val(p, 'done') === true);
+    return card({ href: hrefOf(p), title: nameOf(p), sub: bits.filter(Boolean).join(' · '), right, del: nodeDel(p, nameOf(p), ctx) });
   });
 
-  const condCount = Object.keys(place.data).filter((k) => k.startsWith('cond_') && place.data[k].v != null).length;
+  const hiddenCond = condHiddenKeys(place);
+  const condCount = Object.keys(place.data).filter((k) => k.startsWith('cond_') && !hiddenCond.includes(k) && place.data[k].v != null).length;
   const condPhotos = keys.filter((k) => k.ownerPath === place.path && k.slot === 'cond').length;
 
   const extraCards = extras.map((e) => card({
@@ -120,10 +122,10 @@ export async function render(ctx) {
     h('p', { class: 'sec' }, '설치 지점 (랙 · 함체 · 벽부 등)'),
     pointCards,
     addButton('+ 설치 지점 추가', () => addPointFlow(place, points, ctx)),
-    h('p', { class: 'sec' }, '공사 조건'),
+    h('p', { class: 'sec' }, 'NW공사'),
     card({
       href: P(project.id) + '/cd/' + place.id,
-      title: '공사 조건',
+      title: 'NW공사',
       sub: '천장 · 트레이 · 전원 · 작업 조건 · 입력 ' + condCount + ' · 사진 ' + condPhotos,
       right: h('span', { class: 'go' }, '입력'),
     }),
@@ -134,7 +136,7 @@ export async function render(ctx) {
     doneBtn,
   ];
 
-  const where = [val(place, 'bldg'), val(place, 'floor')].filter(Boolean).join(' · ');
+  const where = locParts(place).join(' · ');
   return {
     title: nameOf(place), sub: where || nameOf(chain[0]),
     menu: 'home', projectId: project.id,

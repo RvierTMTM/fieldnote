@@ -7,17 +7,18 @@
    ── 저장소와 레코드 모양 ─────────────────────────────────────────
    projects  (key: id)
      { id, name, from, to,            // 실사 기간 'YYYY-MM-DD' 또는 null
-       source: 'link'|'manual', createdAt, changedAt, exportedAt|null, linkAt?, meta }
+       source: 'link'|'manual', createdAt, changedAt, exportedAt|null, linkAt?, receivedAt?, meta }   // receivedAt(v0.30): 링크로 받은·다시 받은 때
 
    nodes     (key: id)  index: projectId, parentId, path
      { id, projectId, parentId,       // 현장의 parentId 는 사업 id
-       path,                          // '사업id/현장id/장소id/…' — 만든 뒤 바뀌지 않는다
+       path,                          // '사업id/현장id/장소id/…' — 옮기기(store.moveNode) 말고는 바뀌지 않는다
        type: 'site'|'place'|'route'|'point'|'device'|'extra',
        order, linkId?,                // linkId: 사업 링크에 들어 있던 ID(재수신 때 맞춰 보는 값)
        data: { [항목]: { v, by, at } },   // 값마다 입력자·시각 (예전 기록의 stage 는 무시)
        createdAt, updatedAt }
-     · 여러 줄 항목(VLAN 표, FDF 행선지)은 v 가 배열: [{ id, …칸, _m:{by,at} }]
-     · 공사 조건은 장소(place) 노드의 'cond_' 로 시작하는 항목에 들어간다.
+     · 여러 줄 항목(VLAN 표, FDF 선번장 fdfLines, UTP 선번장 utpLines)은 v 가 배열: [{ id, …칸, _m:{by,at} }]
+     · NW공사(예전 이름 공사 조건)는 장소(place) 노드의 'cond_' 로 시작하는 항목에 들어간다.
+     · path 는 store.moveNode(다른 상위로 옮기기)가 바꾼다 — 노드·사진·휴지통을 한 트랜잭션으로 같이 고친다.
 
    photos    (key: id)  index: projectId, ownerPath, owner_slot[ownerPath+slot], project_created[projectId+createdAt]
      { id, projectId,
@@ -33,8 +34,8 @@
        meta:{by,at} }
      · blob 은 줄인 사진(긴 변 2560px, JPEG 0.85), thumb 는 긴 변 320px. exif 모양은 js/photo-proc.js 주석
 
-   trash     (key: id)  index: projectId, expiresAt     — SA-B가 쓴다(초기화·사진 바꾸기 7일 보관)
-     { id, projectId, kind:'reset'|'photo', label, path, payload, photoCount, deletedAt, expiresAt }   (모양은 js/trash.js 주석)
+   trash     (key: id)  index: projectId, expiresAt     — SA-B가 쓴다(삭제·초기화·사진 바꾸기 14일 보관)
+     { id, projectId, kind:'reset'|'photo'|'node'|'project', label, path, payload, photoCount, deletedAt, expiresAt }   (모양은 js/trash.js 주석)
 
    kv        (key: k)   { k, v }                         — 그 밖의 작은 값(알림을 띄웠는지 등)
 */

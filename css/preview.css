@@ -1,51 +1,53 @@
 /* preview.css — 내보내기 화면 "입력 현황"(미리보기 A)과 장표 미리보기(미리보기 B)
    클래스는 모두 pv- 로 시작한다(app.css 의 .ph·.t 등과 겹치지 않게).
-   장표(.pv-sl)는 종이처럼 늘 흰 바탕이다(검은 바탕 설정과 무관). */
-:root{--pvnone:#8a6a00}
-:root[data-theme=dark]{--pvnone:#ffd36b}
+   장표(.pv-sl)는 종이처럼 늘 흰 바탕이다(검은 바탕 설정과 무관). 장표 안 글자 크기·색은 PPT 와 맞춘 값이라 v0.30 디자인에서도 그대로 둔다.
+   장표 밖(카드·줄·썸네일 틀)은 css/app.css 맨 위 디자인 변수를 쓴다(--pvnone 도 거기 있다). */
 
 /* ── A. 입력 현황 ── */
-.pv-total{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:.65rem .7rem;font-weight:700;display:flex;flex-wrap:wrap;gap:.1rem 0;align-items:center;margin-bottom:.3rem}
+.pv-total{background:var(--card);border-radius:var(--r);box-shadow:var(--sh1);padding:.7rem .875rem;font-weight:600;display:flex;flex-wrap:wrap;gap:.1rem 0;align-items:center;margin-bottom:var(--gap);font-variant-numeric:tabular-nums}
 .pv-total span{white-space:nowrap}
 .pv-total .dot{color:var(--line);margin:0 .4rem;font-weight:400}
-.pv-total .lack{background:var(--yellow);color:var(--onyellow);border-radius:999px;padding:0 .55rem}
-.pv-pc{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:.5rem;overflow:hidden}
-.pv-pc-h{display:flex;align-items:center;gap:.5rem;padding:.6rem .7rem .25rem}
-.pv-pc-h.pv-rt{align-items:flex-start;padding-bottom:.6rem}
+.pv-total .lack{color:var(--warnink);display:inline-flex;align-items:center;gap:.35rem}
+.pv-total .lack::before{content:"";width:.5rem;height:.5rem;border-radius:50%;background:var(--warn)}
+.pv-pc{background:var(--card);border-radius:var(--r);box-shadow:var(--sh1);margin-bottom:var(--gap);overflow:hidden}
+.pv-pc-h{display:flex;align-items:center;gap:.5rem;padding:.7rem .875rem .25rem}
+.pv-pc-h.pv-rt{align-items:flex-start;padding-bottom:.7rem}
 .pv-pc-h .tt{flex:1;min-width:0}
-.pv-pc-h .tt b{display:block;font-size:1.05rem;word-break:break-all}
-.pv-pc-h .tt i{display:block;font-style:normal;font-size:.88rem;color:var(--ink2)}
-.pv-meta{padding:0 .7rem .6rem;font-size:.9rem;color:var(--ink2)}
+.pv-pc-h .tt b{display:block;font-size:var(--fs-b);font-weight:600;word-break:keep-all;overflow-wrap:anywhere}
+.pv-pc-h .tt b.fit{white-space:normal;text-overflow:clip}
+.pv-pc-h .tt i{display:block;font-style:normal;font-size:var(--fs-s);color:var(--mut);word-break:keep-all;overflow-wrap:anywhere}
+.pv-meta{padding:0 .875rem .7rem;font-size:var(--fs-s);color:var(--mut);word-break:keep-all;overflow-wrap:anywhere}
 .pv-meta em{font-style:normal;font-weight:700;color:var(--ink)}
 .pv-meta em.none{color:var(--pvnone)}
-.pv-lk{display:flex;width:100%;align-items:center;gap:.4rem;background:#fff1c9;border-top:1px solid #f1d27a;padding:.6rem .7rem;font-size:.93rem;font-weight:700;color:#111a26}
-.pv-pc>.pv-lk:first-child{border-top:0}
-.pv-lk span{flex:1;min-width:0;word-break:break-all}
-.pv-lk .ar{flex:none;font-size:1.1rem;color:#8a6a00}
-.pv-lk:active{background:#ffe59a}
+/* 미작성 항목 줄(누르면 그 화면): 옅은 면 + 왼쪽 가는 노란 띠 */
+.pv-lk{display:flex;width:100%;align-items:center;gap:.4rem;background:var(--tone);box-shadow:inset 4px 0 0 var(--warn);padding:.6rem .875rem .6rem 1.05rem;font-size:var(--fs-s);font-weight:600;color:var(--ink);min-height:2.75rem}
+.pv-lk+.pv-lk{margin-top:2px}
+.pv-lk span{flex:1;min-width:0;word-break:keep-all;overflow-wrap:anywhere}
+.pv-lk .ar{flex:none;font-size:var(--fs-b);color:var(--mut)}
+.pv-lk:active{background:var(--well)}
 .btn.pv-go{margin-top:.8rem}
-.btn.pv-exp{margin-top:.9rem;min-height:3.4rem;font-size:1.1rem}
-.pv-size{text-align:center;font-size:.93rem;color:var(--ink2);margin-top:.45rem}
+.btn.pv-exp{margin-top:.9rem;min-height:3.25rem}
+.pv-size{text-align:center;font-size:var(--fs-s);color:var(--mut);margin-top:.45rem}
 .pv-size b{color:var(--ink)}
 .pv-center{text-align:center}
 
 /* ── B. 장표 썸네일 목록 ── */
-.pv-th{display:block;width:100%;margin-bottom:.9rem;text-align:left}
-.pv-th-h{display:flex;gap:.5rem;align-items:baseline;margin:0 .1rem .3rem;font-size:.9rem}
-.pv-th-h .n{flex:none;font-weight:700;color:var(--accink);font-variant-numeric:tabular-nums}
-.pv-th-h .nm{flex:1;min-width:0;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pv-fit{position:relative;width:100%;aspect-ratio:900/637;overflow:hidden;background:#fff;border:1px solid var(--line);border-radius:4px;box-shadow:0 1px 4px rgba(0,0,0,.12)}
-.pv-th:active .pv-fit{outline:3px solid var(--blue)}
+.pv-th{display:block;width:100%;margin-bottom:1rem;text-align:left}
+.pv-th-h{display:flex;gap:.5rem;align-items:baseline;margin:0 .25rem .35rem;font-size:var(--fs-s)}
+.pv-th-h .n{flex:none;font-weight:700;color:var(--mut)}
+.pv-th-h .nm{flex:1;min-width:0;font-weight:600;word-break:keep-all;overflow-wrap:anywhere}
+.pv-fit{position:relative;width:100%;aspect-ratio:900/637;overflow:hidden;background:#fff;border:0;border-radius:var(--rs);box-shadow:var(--sh1);transition:transform .09s,box-shadow .09s}
+.pv-th:active .pv-fit{transform:translateY(2px);box-shadow:0 0 0 var(--edge)}
 .pv-fit>.pv-sl{position:absolute;left:0;top:0;transform-origin:0 0}
 
 /* ── 장표 한 장(900px 폭 기준, 칸 위치는 js/slide-preview.js 가 PPT 와 같게 넣는다) ── */
 .pv-sl{position:relative;background:#fff;color:#222;overflow:hidden;font-family:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif;line-height:1.22;text-align:left;font-size:12px}
 .pv-sl>*{position:absolute;box-sizing:border-box}
-.pv-t{display:flex;flex-direction:column;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere}
+.pv-t{display:flex;flex-direction:column;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere;word-break:keep-all}   /* keep-all: 한글도 공백에서만 줄바꿈(PowerPoint 와 같게 — pptx-build.js 줄 수 어림과 맞춤) */
 .pv-t>div{min-width:0;max-height:100%}
 .pv-i{display:block;object-fit:contain}
 .pv-tb{border-collapse:collapse;table-layout:fixed;line-height:1.15}
-.pv-tb td{padding:0 3px;overflow:hidden;vertical-align:middle;white-space:normal;overflow-wrap:anywhere}
+.pv-tb td{padding:0 3px;overflow:hidden;vertical-align:middle;white-space:normal;overflow-wrap:anywhere;word-break:keep-all}
 /* 빈 값 표시(미리보기 전용 — 실제 PPT 에는 없음): 노란 칸 + 빨간 원 안 흰 ! */
 .pv-x{display:inline-flex;align-items:center;justify-content:center;flex:none;border-radius:50%;background:#e0151c;color:#fff;font-family:Arial,Helvetica,sans-serif;font-weight:900;font-style:normal;line-height:1;vertical-align:middle;box-shadow:0 0 0 2px #fff}
 .pv-tb td.pv-m{background:#fff4c2!important;color:#8a6a00!important;font-weight:700}
@@ -61,10 +63,10 @@
 /* ── 크게 보기 ── */
 .pv-lb{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(8,10,14,.96);
   padding:3.4rem max(1rem, env(safe-area-inset-right, 0px)) calc(4.4rem + env(safe-area-inset-bottom, 0px)) max(1rem, env(safe-area-inset-left, 0px))}
-.pv-lb .pv-fit{width:min(100%, calc((100vh - 8.5rem) * 1.413));border:0;border-radius:2px;touch-action:pan-y}
-.pv-lb-t{position:absolute;top:1rem;left:1rem;right:4.4rem;color:#fff;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pv-lb-t span{color:#ff9ea2;margin-right:.5rem;font-weight:700;font-variant-numeric:tabular-nums}
-.pv-lb-x{position:absolute;top:.5rem;right:max(.7rem, env(safe-area-inset-right, 0px));width:2.6rem;height:2.6rem;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;font-size:1.25rem;display:flex;align-items:center;justify-content:center}
+.pv-lb .pv-fit{width:min(100%, calc((100vh - 8.5rem) * 1.413));border:0;border-radius:var(--rs);box-shadow:none;touch-action:pan-y}
+.pv-lb-t{position:absolute;top:1rem;left:1rem;right:4.4rem;color:#fff;font-size:var(--fs-b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pv-lb-t span{color:#c9d2de;margin-right:.5rem;font-weight:700;font-variant-numeric:tabular-nums}
+.pv-lb-x{position:absolute;top:.5rem;right:max(.7rem, env(safe-area-inset-right, 0px));width:2.75rem;height:2.75rem;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;font-size:1.25rem;display:flex;align-items:center;justify-content:center}
 .pv-lb-nav{position:absolute;left:0;right:0;bottom:calc(.8rem + env(safe-area-inset-bottom, 0px));display:flex;justify-content:center;gap:.8rem}
-.pv-lb-nav button{min-width:6.4rem;min-height:2.6rem;border-radius:10px;background:rgba(255,255,255,.16);color:#fff;font-weight:700;text-align:center}
+.pv-lb-nav button{min-width:6.4rem;min-height:2.75rem;border-radius:var(--rs);background:rgba(255,255,255,.16);color:#fff;font-weight:700;text-align:center}
 .pv-lb-nav button:disabled{opacity:.3;cursor:default}

@@ -13,7 +13,7 @@
 import * as db from './db.js';
 import { getProject, projectNodes, nameOf, markExported } from './store.js';
 import { getSettings, setSetting } from './settings.js';
-import { h, alertDialog, confirmDialog, promptText, openOverlay, closeOverlay, closeAllOverlays, dialog, toast } from './ui.js';
+import { h, alertDialog, confirmDialog, promptText, openOverlay, closeOverlay, closeAllOverlays, dialog, toast, sheet } from './ui.js';
 import { ZipWriter, readZip, jpegWithTime, blobCrc } from './zipfile.js';
 import { buildOutline, assignNames, zipBaseName } from './zipname.js';
 import { buildPptx, TEAM_NAME } from './pptx-build.js';
@@ -24,7 +24,12 @@ export const RECORD_NAME = '기록_fieldnote.json';
 
 const PPT_LONG = 1280;        // PPT용 사진 긴 변(px)
 const PPT_QUALITY = 0.72;
-const PPT_PER_PHOTO = 180 * 1024;   // 크기 어림용 PPT 사진 한 장
+/* 크기 어림용 값(예시 실사 3건을 실제로 내보낸 크기와 맞춰 정함: 오차 ±5% 안) */
+const PPT_BASE = 40 * 1024;         // PPT 뼈대(마스터·테마·CI)
+const PPT_PER_SLIDE = 4 * 1024;     // 장표 한 장의 글·표(xml 압축 뒤)
+const PPT_PHOTO_MAX = 260 * 1024;   // PPT 안 사진 한 장 상한(긴 변 1280px, 품질 0.72)
+const REC_PER_NODE = 300;           // 기록 파일(압축) 노드 하나
+const REC_PER_PHOTO = 250;          // 기록 파일(압축) 사진 하나(EXIF 포함)
 
 /* ── 자료 꺼내기 ─────────────────────────────────────── */
 function correctedMeta(c) {
@@ -76,14 +81,38 @@ export async function getPhotoBlob(photoId, which = 'blob') {
 }
 
 /* ── 크기 어림 ───────────────────────────────────────── */
+/** PPT 안에 들어갈 사진 한 장의 크기 어림: 보정본이 있으면 보정본을, 긴 변이 1280px 보다 크면 넓이 비율만큼(제곱) 줄여서.
+    줄인 크기(exif.saved)를 모르면 400KB 넘는 사진은 2560px 로 본다. */
+function pptPhotoBytes(p) {
+  const src = (p.corrected && p.corrected.blob ? p.corrected.blob.size : 0) || (p.blob ? p.blob.size : 0);
+  const sv = p.exif && p.exif.saved;
+  const side = (sv && (sv.maxSide || Math.max(sv.width || 0, sv.height || 0))) || (src > 400 * 1024 ? 2560 : 0);
+  const scale = side > PPT_LONG ? (PPT_LONG / side) ** 2 : 1;
+  return Math.min(PPT_PHOTO_MAX, Math.max(6 * 1024, src * scale * 1.05));
+}
+
+/** 장표 수 어림(pptx-build.js 순서와 같은 종류): 표지 + 장소(전경) + NW공사 입력 있는 장소 + 설치 지점 + FDF·패치판넬 선번장 + 경로 + 자유 추가 + 사진 넘침(계속) */
+function slideCount(nodes, photos) {
+  const of = (t) => nodes.filter((n) => n.type === t);
+  const places = of('place');
+  const cond = places.filter((n) => Object.keys(n.data || {}).some((k) => k.startsWith('cond_') && n.data[k] && n.data[k].v != null)
+    || photos.some((p) => p.ownerPath === n.path && p.slot === 'cond')).length;
+  const lines = (n, k) => n.data && n.data[k] && Array.isArray(n.data[k].v) && n.data[k].v.length;
+  const devs = of('device');
+  const fdf = devs.filter((n) => lines(n, 'fdfLines')).length;
+  const utp = devs.filter((n) => lines(n, 'utpLines')).length;
+  return 1 + places.length + cond + of('point').length + fdf + utp + of('route').length + of('extra').length + Math.ceil(photos.length / 10);
+}
+
+/** 내보낼 zip 크기 어림(바이트) = 원본 사진 + 보정본 + PPT(뼈대 + 장표 글 + 사진 줄인 것) + 기록 파일 + zip 머리 */
 export async function estimateExportSize(projectId) {
   try {
     const [photos, nodes] = await Promise.all([db.byIndex('photos', 'projectId', projectId), projectNodes(projectId)]);
-    let n = 200 * 1024 + nodes.length * 1500 + photos.length * 600;    // PPT 뼈대·기록 파일
+    let n = PPT_BASE + slideCount(nodes, photos) * PPT_PER_SLIDE + nodes.length * REC_PER_NODE + photos.length * REC_PER_PHOTO;
     for (const p of photos) {
       const orig = p.blob ? p.blob.size : 0;
       const corr = p.corrected && p.corrected.blob ? p.corrected.blob.size : 0;
-      n += orig + corr + 400 + Math.min(PPT_PER_PHOTO, corr || orig);
+      n += orig + corr + 400 + pptPhotoBytes(p);
     }
     return n;
   } catch (e) {
@@ -303,15 +332,16 @@ export async function runExport(projectId) {
     await prog.close();
     if (!stopped) console.error(e);
     await alertDialog('저장 후 내보내기', stopped ? '내보내기를 멈췄습니다. 기록은 이 폰에 그대로 있습니다.'
-      : ['내보내지 못했습니다.', (e && e.message) || '', '기록은 이 폰에 그대로 있습니다.']);
+      : [...errorLines(e, '내보내지 못했습니다.'), '기록은 이 폰에 그대로 있습니다.']);
     return false;
   }
   download(out.blob, out.name);
   await markExported(projectId);
   const again = h('button', { type: 'button', class: 'btn sub', onclick: () => download(out.blob, out.name) }, '파일 다시 받기');
-  await alertDialog('내보냈습니다', [
+  // 내려받기가 실제로 시작됐는지는 앱이 알 수 없다(아티팩트 시험판 같은 틀 안에서는 막힐 수 있음) — "내보냈다"고 단정하지 않는다
+  await alertDialog('파일을 만들었습니다', [
     out.name + ' · ' + sizeText(out.blob.size),
-    '휴대폰의 다운로드 폴더에 저장됩니다. 받기가 안 됐으면 아래 버튼을 눌러 주세요.',
+    '내려받기를 시작했습니다. 받은 파일이 보이지 않으면 브라우저 내려받기 목록을 확인해 주세요.',
     again,
     '보낸 뒤에도 기록은 폰에 남아 있습니다.',
   ]);
@@ -319,6 +349,27 @@ export async function runExport(projectId) {
 }
 
 /* ── 불러오기(PC에서 이어서 하기) ──────────────────────── */
+/** 사람이 읽을 문장(text)과 작게 붙일 자세한 내용(detail)을 가진 오류 */
+function friendly(text, detail) {
+  return Object.assign(new Error(text), { friendly: true, detail: detail || '' });
+}
+
+/** 오류 → 창에 보일 글: [사람이 읽을 문장, 작은 "(자세한 내용: …)"] .
+    friendly 오류와 한글 문장 오류(zip 읽기·기록 검사)는 그 문장 그대로, 영어 시스템 메시지는 fallback 문장 + 자세한 내용으로 */
+function errorLines(e, fallback) {
+  const msg = String((e && e.message) || '');
+  let text; let detail = '';
+  if (e && e.friendly) { text = msg; detail = e.detail || ''; }
+  else if (/[가-힣]/.test(msg)) text = msg;
+  else if (e && (e.name === 'QuotaExceededError' || /quota/i.test(msg))) { text = '저장 공간이 부족합니다. 폰 저장 공간을 비운 뒤 다시 해 주세요.'; detail = (e.name ? e.name + ': ' : '') + msg; }
+  else { text = fallback; detail = (e && e.name && e.name !== 'Error' ? e.name + ': ' : '') + msg; }
+  return [text, detail ? h('p', { class: 'hint' }, '(자세한 내용: ' + detail + ')') : null].filter(Boolean);
+}
+
+const NOT_RECORD = 'zip 파일이나 기록 파일(.json)이 아닙니다. 내보낸 zip 파일을 골라 주세요.';
+const BROKEN_RECORD = '기록 파일이 깨져서 읽을 수 없습니다. 내보낸 zip 파일을 골라 주세요.';
+const MAX_JSON = 256 * 1024 * 1024;
+
 async function readInput(input) {
   if (input && !(input instanceof Blob) && typeof input === 'object') return { model: input, zip: null };
   const head = new Uint8Array(await input.slice(0, 4).arrayBuffer());
@@ -326,10 +377,25 @@ async function readInput(input) {
     const zip = await readZip(input);
     let entry = zip.find(RECORD_NAME);
     if (!entry) entry = zip.entries.find((e) => /\.json$/i.test(e.name) && e.size < 64 * 1024 * 1024 && /fieldnote/i.test(e.name));
-    if (!entry) throw new Error('zip 안에 기록 파일(' + RECORD_NAME + ')이 없습니다.');
-    return { model: JSON.parse(await zip.text(entry)), zip };
+    if (!entry) throw friendly('이 zip 에 기록 파일(' + RECORD_NAME + ')이 없습니다. 현장실사 앱에서 내보낸 zip 파일이 맞는지 확인해 주세요.');
+    let model;
+    try { model = JSON.parse(await zip.text(entry)); } catch (e) { console.warn('zip 안의 기록 파일 읽기 실패', e); throw friendly('zip 안의 기록 파일을 읽지 못했습니다. 파일이 깨졌을 수 있습니다.'); }   // 영어 오류 세부는 화면에 안 보이고 콘솔에만
+    return { model, zip };
   }
-  return { model: JSON.parse(await input.text()), zip: null };
+  // zip 이 아니면 기록 파일(.json)이어야 한다.
+  // · 이름이 .json 이면: 읽어서 JSON 이 깨졌으면 "기록 파일이 깨져서 …"(BROKEN_RECORD). 읽힌 것이 객체가 아니면(배열·숫자 등 형식이 다른 json) NOT_RECORD.
+  // · .json 이 아니면: 앞부분이 { 로 시작하지 않으면 읽지 않고 돌려보낸다(큰 사진·영상 파일을 통째로 읽지 않게). 시작은 { 인데 JSON 이 깨졌으면 NOT_RECORD.
+  // 영어 오류 세부(JSON.parse 메시지)는 화면에 안 보이고 콘솔에만 남긴다.
+  if (input.size > MAX_JSON) throw friendly(NOT_RECORD);
+  const isJson = /\.json$/i.test(String(input.name || ''));
+  if (!isJson) {
+    const first = new TextDecoder().decode(new Uint8Array(await input.slice(0, 64).arrayBuffer())).replace(/^\uFEFF/, '').trimStart()[0];
+    if (first !== '{') throw friendly(NOT_RECORD);
+  }
+  let model;
+  try { model = JSON.parse(await input.text()); } catch (e) { console.warn('기록 파일 읽기 실패', e); throw friendly(isJson ? BROKEN_RECORD : NOT_RECORD); }
+  if (!model || typeof model !== 'object' || Array.isArray(model)) throw friendly(NOT_RECORD);
+  return { model, zip: null };
 }
 
 function checkModel(m) {
@@ -509,7 +575,8 @@ async function importFile(file, ctx) {
     const stopped = e && e.cancelled;
     await prog.close();
     if (!stopped) console.error(e);
-    await alertDialog('불러오기', stopped ? '불러오기를 멈췄습니다. 그때까지 들어온 것은 남아 있습니다.' : ['불러오지 못했습니다.', (e && e.message) || '']);
+    await alertDialog('자료복구', stopped ? '불러오기를 멈췄습니다. 그때까지 들어온 것은 남아 있습니다.'
+      : [...errorLines(e, '불러오지 못했습니다. 파일이 올바른지 확인한 뒤 다시 해 주세요.')]);
     return;
   }
   const lines = [
@@ -523,6 +590,25 @@ async function importFile(file, ctx) {
 
 /** 자료복구 버튼 — 진짜 파일 칸을 버튼 위에 투명하게 덮어, 손가락이 파일 칸을 직접 누르게 한다.
     (코드로 숨은 파일 칸을 대신 누르면 아티팩트 같은 보안 틀·일부 브라우저에서 막힌다) */
+/* ── 실사샘플 받기(v0.30) ─────────────────────────────────
+   예시 실사 zip 은 앱(공개 깃허브)에 넣지 않고 구글 드라이브에 둔다. 버튼은 드라이브 화면을 새 창으로 열 뿐이고,
+   받은 zip 은 사용자가 자료복구로 연다. 드라이브 공유 범위는 드라이브에서 정한다(링크 주소는 그대로). */
+export const SAMPLES = [
+  { label: '여수공장 실사샘플', sub: '사진 74장 · 9.4MB', url: 'https://drive.google.com/file/d/1CzkLQx7gUuh3JblB3G6SvmDNE8zF-GnA/view' },
+  { label: '대전공장 실사샘플', sub: '사진 없음 · 0.6MB', url: 'https://drive.google.com/file/d/1BLZbT0MBDOq_RUOq42Q7AUMwLvHWjAuA/view' },
+];
+
+export async function openSamples() {
+  const url = await sheet({ title: '실사샘플 받기', note: '드라이브에서 zip을 내려받은 뒤, 자료복구로 여세요.', items: SAMPLES.map((x) => ({ label: x.label, sub: x.sub, value: x.url })) });
+  if (!url) return;
+  window.open(url, '_blank', 'noopener');
+  await alertDialog('실사샘플 받기', '드라이브에서 zip을 내려받은 뒤\n자료복구 버튼으로 그 파일을 고르세요.');
+}
+
+export function sampleButton(label = '실사샘플 받기') {
+  return h('button', { type: 'button', class: 'btn sub', onclick: () => openSamples().catch((e) => console.error(e)) }, label);
+}
+
 export function importButton(ctx, label = '자료복구', cls = 'btn sub') {
   const input = h('input', { type: 'file', accept: '.zip,.json,application/zip,application/json', class: 'file-over', 'aria-label': label });
   input.addEventListener('change', async () => {

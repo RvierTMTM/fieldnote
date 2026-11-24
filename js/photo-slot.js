@@ -11,7 +11,7 @@
      · 저장 전에 js/photo-proc.js 로 줄인다(긴 변 2560px JPEG 0.85 + 320px 작은 그림 + EXIF 메타 → photo.exif)
      · 바로 찍은 직후 보정 창(openCorrector)을 연다. 창의 ✕ = 건너뛰기.
      · 짧게 누름 = 사진 메뉴: 다시 찍기 / 갤러리에서 바꾸기 / 크게 보기(두 손가락 확대) / 보정 다시 하기 / (떼어서) 삭제
-       바꾸기는 같은 id·칸·순서를 그대로 두고 사진만 바꾼다. 바꾸기 전 사진은 휴지통 7일(trash.trashPhotoCopy).
+       바꾸기는 같은 id·칸·순서를 그대로 두고 사진만 바꾼다. 바꾸기 전 사진은 휴지통 14일(trash.trashPhotoCopy).
      · 길게 누름(여러 장 칸, 2장 이상) = 끌어다 놓아 순서 바꾸기. 같은 칸 안에서만. 놓으면 order 자동 저장. */
 import { h, sheet, confirmDialog, alertDialog, openOverlay, closeOverlay, toast, fill } from './ui.js';
 import { addPhoto, listPhotos, getPhoto, putPhoto, deletePhoto, reorderPhotos, getProject, stamp } from './store.js';
@@ -104,7 +104,7 @@ export function photoSlot(opts) {
       const r = await processImage(files[0]);
       const old = await getPhoto(photo.id);
       if (!old) throw new Error('바꿀 사진을 찾지 못했습니다. 지워졌을 수 있습니다.');
-      await trashPhotoCopy(old, [await whereOf(ownerPath), label].filter(Boolean).join(' · '));
+      await trashPhotoCopy(old, [await whereOf(ownerPath), label].filter(Boolean).join(' · '), label ? ' · ' + label : '');
       await putPhoto({
         ...old, blob: r.blob, thumb: r.thumb, source: camera ? 'camera' : 'gallery',
         takenAt: r.takenAt, exif: r.exif, corrected: null, meta: stamp(),
@@ -117,7 +117,7 @@ export function photoSlot(opts) {
       busy = false;
     }
     await changed();
-    if (ok) toast('바꿨습니다. 바꾸기 전 사진은 휴지통에 7일 보관됩니다.');
+    if (ok) toast('바꿨습니다. 바꾸기 전 사진은 휴지통에 14일 보관됩니다.');
     if (ok && camera) {
       if (await openCorrector(photo.id)) await changed();
     }
@@ -146,7 +146,7 @@ export function photoSlot(opts) {
       title: (label || '사진') + (multi ? ' · ' + (index + 1) + '번째' : ''),
       note: multi ? '길게 누르면 끌어서 순서를 바꿀 수 있습니다.' : null,
       items: [
-        { label: '다시 찍기', sub: '바꾸기 전 사진은 휴지통에 7일 보관', value: 'retake' },
+        { label: '다시 찍기', sub: '바꾸기 전 사진은 휴지통에 14일 보관', value: 'retake' },
         { label: '갤러리에서 바꾸기', value: 'gallery' },
         { label: '크게 보기', sub: photo.corrected ? '보정 전·후 비교' : null, value: 'view' },
         { label: '보정 다시 하기', sub: photo.corrected ? null : '기울기·사다리꼴 바로잡기', value: 'correct' },

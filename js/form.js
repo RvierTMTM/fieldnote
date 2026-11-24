@@ -14,14 +14,16 @@
      { t:'seg',  k, label, opts:[둘], none, unknown, rerender }             두 칸 버튼
      { t:'flag', k, label }                           켜고 끄는 버튼 하나
      { t:'pick', k, label, choices() → [{ref,label,sub}], custom, none, unknown, rerender }
-                                                      긴 목록에서 고르기(창이 열림). 값은 { ref, label } 또는 글자
+                                                      긴 목록에서 고르기(창이 열림). 값은 { ref, label } 또는 글자.
+                                                      이름표와 버튼은 한 줄에 두고, 고른 글자가 길면 칸을 키우지 않고 글자 크기를 줄인다(ui.fitText).
+                                                      잘리면 title 로 전체가 보이고, 누르면 열리는 창 맨 위에 "지금 고른 것"이 전체로 나온다.
      { t:'photo', slot, label, multi, hint, warnEmpty }  사진 칸(js/photo-slot.js)
      { t:'rows', k, label, addLabel, rowTitle, cols:[위와 같은 item…] }   여러 줄(값은 배열)
      { t:'fold', label, items:[…], open }             접어 두는 묶음
      { t:'custom', render(node, ctx) }                직접 만든 조각
    모든 고르기 항목에는 "없음 / 확인 못 함"이 붙는다(none:false, unknown:false 로 뺄 수 있다).
    고른 값은 화면 글자 그대로 저장한다. 여러 개 고르기는 배열. */
-import { h, promptText, confirmDialog, flashSaved, sheet, fill } from './ui.js';
+import { h, promptText, confirmDialog, flashSaved, sheet, fill, fitText } from './ui.js';
 import { setField, val, stamp, uid, deletePhotosOfSlot, pickLabel } from './store.js';
 import { NONE, UNKNOWN } from './options.js';
 import { photoSlot } from './photo-slot.js';
@@ -243,7 +245,7 @@ function flagItem(bind, it, ctx) {
 
 /* 긴 목록에서 고르기: 누르면 창이 열린다 */
 function pickItem(bind, it, ctx) {
-  const wrap = h('div', { class: 'row' });
+  const wrap = h('div', { class: 'row pick' });
   const open = async () => {
     const cur = bind.get(it.k);
     const list = await it.choices();
@@ -255,7 +257,7 @@ function pickItem(bind, it, ctx) {
     if (it.none !== false) items.push({ label: NONE, value: NONE, on: cur === NONE });
     if (it.unknown !== false) items.push({ label: UNKNOWN, value: UNKNOWN, on: cur === UNKNOWN });
     if (cur != null) items.push({ label: '고른 것 지우기', value: '\u0000clear' });
-    let v = await sheet({ title: it.label, items });
+    let v = await sheet({ title: it.label, items, note: cur != null && pickLabel(cur) ? '지금 고른 것: ' + pickLabel(cur) : undefined });
     if (v === undefined) return;
     if (v === '\u0000custom') {
       const t = await promptText({ title: it.label, placeholder: '직접 입력' });
@@ -268,9 +270,9 @@ function pickItem(bind, it, ctx) {
   };
   const draw = () => {
     const cur = bind.get(it.k);
-    fill(wrap, 
-      h('span', { class: 'l' }, it.label),
-      h('button', { type: 'button', class: 'sel', onclick: open }, (cur == null ? '고르기' : pickLabel(cur)) + ' ▾'));
+    const btn = h('button', { type: 'button', class: 'sel', onclick: open });
+    btn.append(fitText(h('span', { class: 'sel-t' }, cur == null ? '고르기' : pickLabel(cur)), { title: btn }), h('span', { class: 'sel-a', 'aria-hidden': 'true' }, '▾'));
+    fill(wrap, h('span', { class: 'l' }, it.label), btn);
   };
   draw();
   return wrap;

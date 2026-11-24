@@ -4,7 +4,7 @@
    · 앱 파일을 고치면 VERSION 을 반드시 올린다 — 그래야 폰이 새 파일을 다시 받는다.
    · 새 js/css/그림 파일을 추가하면 FILES 에도 넣는다(안 넣어도 한 번 열면 담기지만, 오프라인 첫 사용에 빠질 수 있다).
    · 사진·입력값은 여기서 다루지 않는다(IndexedDB 에 있다). */
-const VERSION = 'v0.20'; // js/version.js 의 APP_VERSION 과 같은 값
+const VERSION = 'v0.30'; // js/version.js 의 APP_VERSION 과 같은 값
 const CACHE = 'fieldnote-' + VERSION;
 const FILES = [
   './',
@@ -34,7 +34,11 @@ const FILES = [
   'js/photo-slot.js',
   'js/corrector.js',
   'js/notice.js',
+  'js/admin.js',
+  'js/qr.js',
   'js/trash.js',
+  'js/node-edit.js',
+  'js/rack-drag.js',
   'js/export.js',
   'js/photo-proc.js',
   'js/pptx-build.js',
@@ -56,6 +60,7 @@ const FILES = [
   'js/screens/routes.js',
   'js/screens/export.js',
   'js/screens/settings.js',
+  'js/screens/distribute.js',
   'js/screens/more.js',
   'js/screens/preview.js',
   'js/slide-preview.js',

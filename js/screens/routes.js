@@ -65,6 +65,7 @@ export async function render(ctx) {
     { t: 'sec', label: '타공' },
     { t: 'num', k: 'wallHoles', label: '벽 타공', unit: '곳', none: true },
     { t: 'num', k: 'slabHoles', label: '슬래브 타공', unit: '곳', none: true },
+    { t: 'sec', label: '방화구획' },
     { t: 'one', k: 'fire', opts: ROUTE_FIRE },
     { t: 'sec', label: '문제' },
     { t: 'multi', k: 'problems', opts: ROUTE_PROBLEMS, custom: true },

@@ -1,10 +1,10 @@
 /* tools/link-tool.js — 실사업무 링크 만들기 페이지(tools/link.html)의 동작
    · 실사 정보(실사 ID·실사명·실사 기간·현장 목록·장소 목록) → 링크 + QR
    · 전에 만든 링크를 붙여 넣으면 ID를 그대로 살려서 고칠 수 있다(재수신 때 같은 것으로 맞춰지게).
-   · 링크 형식과 변환은 ../js/link.js, QR은 ./qr.js */
+   · 링크 형식과 변환은 ../js/link.js, QR은 ../js/qr.js */
 import { encodeProjectLink, decodeProjectLink, buildLinkUrl, newId } from '../js/link.js';
 import { PLACE_KINDS } from '../js/options.js';
-import { qrSvg, QR_MAX_BYTES } from './qr.js';
+import { qrSvg, QR_MAX_BYTES } from '../js/qr.js';
 
 const $ = (id) => document.getElementById(id);
 const el = (tag, props, ...kids) => {
@@ -20,7 +20,7 @@ let sites = [];
 function drawSites() {
   const box = $('sites');
   box.replaceChildren(...sites.map((s, si) => {
-    const nameInp = el('input', { type: 'text', placeholder: '현장 이름 (예: A동)', value: s.name });
+    const nameInp = el('input', { type: 'text', placeholder: '현장 이름 (예: 여수1공장)', value: s.name });
     nameInp.addEventListener('input', () => { s.name = nameInp.value; });
     const rows = s.places.map((p, pi) => {
       const inp = el('input', { type: 'text', placeholder: '장소 이름 (예: 2층 전산실)', value: p.name });

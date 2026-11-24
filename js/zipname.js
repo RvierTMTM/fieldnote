@@ -7,7 +7,7 @@
      assignNames(outline) → Map(photoId → { dir, base, file, correctedFile, caption })
      SLOT_SHORT                               사진 칸 → 파일 이름에 쓰는 짧은 말
    이름 규칙(docs/ARCH.md 7절):
-     사진/<현장>/<장소>_<종류>_<순번>                       장소에 달린 사진(전경·문패·손글씨·공사조건)
+     사진/<현장>/<장소>_<종류>_<순번>                       장소에 달린 사진(전경·문패·손글씨·NW공사)
      사진/<현장>/<장소>_<설치 지점>_<종류>_<순번>           랙·함체 등 설치 지점 사진(랙이면 랙 이름)
      사진/<현장>/<장소>_<설치 지점>_<위치-장비>-<종류>_<순번>  장비 사진(예: 39U-스위치-근접)
      사진/<현장>/<장소>_<꼬리표>_<순번>                     자유 추가
@@ -17,7 +17,7 @@ import { val, nameOf, pickLabel } from './store.js';
 import { RACK_FORMS } from './options.js';
 
 export const SLOT_SHORT = {
-  overview: '전경', nameplate: '문패', handnote: '손글씨', cond: '공사조건',
+  overview: '전경', nameplate: '문패', handnote: '손글씨', cond: 'NW공사',
   front: '전면', rear: '후면', closeup: '근접', label: '라벨', outer: '함체외관', inner: '함체내부',
   asset: '자산스티커', ipscreen: 'IP화면', photo: '사진', path: '경로',
 };
@@ -81,7 +81,7 @@ function deviceSort(inRack) {
 }
 
 /** model(exportModel 결과) → 장표 순서의 뼈대
-    { project, sites:[{ node, places:[{ node, slots, points:[{ node, isRack, slots, devices:[{ node, slots, fdf:[{ row, photos }] }] }],
+    { project, sites:[{ node, places:[{ node, slots, points:[{ node, isRack, slots, devices:[{ node, slots, fdf:[{ row, photos }], utp:[row] }] }],
       extras:[{ node, photos }] }], routes:[{ node, no, photos }] }], orphans:[photo] } */
 export function buildOutline(model) {
   const nodes = model.nodes.slice().sort((a, b) => a.order - b.order);
@@ -119,11 +119,13 @@ export function buildOutline(model) {
           isRack,
           slots: slotsOf(point, POINT_SLOTS),
           devices: of(point.id, 'device').sort(deviceSort(isRack)).map((d) => {
-            const rows = Array.isArray(val(d, 'fdfLines')) ? val(d, 'fdfLines') : [];
+            const rows = Array.isArray(val(d, 'fdfLines')) ? val(d, 'fdfLines') : [];      // FDF 선번장(데이터 키는 예전 이름 그대로)
+            const utp = Array.isArray(val(d, 'utpLines')) ? val(d, 'utpLines') : [];       // UTP 선번장(패치판넬)
             return {
               node: d,
               slots: slotsOf(d, DEVICE_SLOTS),
               fdf: rows.map((row) => ({ row, photos: take(d.path, 'fdfLines:' + row.id + ':photo') })),
+              utp,
             };
           }),
         };

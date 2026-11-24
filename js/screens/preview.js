@@ -135,7 +135,7 @@ export async function render(ctx) {
     scope: { project, node: null },
     crumbs: [{ label: '홈', href: P(project.id) }, { label: '내보내기', href: P(project.id) + '/export' }, { label: '장표 미리보기' }],
     body: [
-      h('p', { class: 'hint' }, '장표를 누르면 크게 봅니다. 노란 칸·빨간 !는 아직 입력하지 않은 값입니다.'),
+      h('p', { class: 'hint' }, '장표를 누르면 크게 봅니다. 노란 칸·빨간 !는 미작성 항목입니다.'),
       list,
     ],
   };

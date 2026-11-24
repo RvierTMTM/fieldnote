@@ -1,4 +1,4 @@
-/* tools/qr.js — QR 코드 만들기(외부 라이브러리 없이 직접 구현)
+/* js/qr.js — QR 코드 만들기(외부 라이브러리 없이 직접 구현)
    공개:
      qrMatrix(text) → boolean[][]            true = 검은 칸. 너무 길면 Error
      qrSvg(text, { margin=4 }) → SVGElement  화면에 붙일 그림(크기는 CSS 로 조절)

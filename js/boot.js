@@ -5,6 +5,6 @@
     var s = JSON.parse(localStorage.getItem('fn.settings') || '{}');
     var d = document.documentElement;
     d.dataset.fs = String(s.fontSize || 1);
-    if (s.theme === 'dark') d.dataset.theme = 'dark';
+    if (s.theme === 'dark' || s.theme === 'light') d.dataset.theme = s.theme;   // 그 밖(자동·값 없음)은 속성 없음 = 폰 설정 따름
   } catch (e) { /* 저장된 설정을 못 읽으면 기본값으로 둔다 */ }
 })();

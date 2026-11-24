@@ -1,13 +1,14 @@
 /* screens/home.js — 홈: 실사를 열면 나오는 현장 카드 목록   라우트: #/p/:pid
    공개: render(ctx)
-   · 현장 배지: 미작성이 아닌 장소가 없으면 "장소 없음", 장소에 빠진 값이 있으면 "! 빠진 값 N",
-     장소가 모두 완료(사용자가 누름)면 "완료", 아니면 "완료 전". 미작성 현장은 [지우기](30일 규칙 없이 바로).
+   · 현장 배지: 미작성이 아닌 장소가 없으면 "장소 없음", 장소·설치 지점·경로에 미작성 항목이 있으면 "! 미작성 항목 N"(완료보다 우선, 입력 현황 요약과 같은 기준),
+     장소가 모두 완료(사용자가 누름)면 "완료", 아니면 "완료 전".
+   · 현장 카드마다 [삭제](js/trash.js deleteNode — 미작성이면 바로, 아니면 확인 창 한 번).
    · 맨 위 내보내기 안내 줄은 js/notice.js(SA-B)가 그린다(data-slot="home-notice") */
 import { h, promptText } from '../ui.js';
-import { projectSummary, missingItems, photoCounter, addNode, nameOf, val } from '../store.js';
+import { projectSummary, missingItems, lackItems, photoCounter, addNode, nameOf, val } from '../store.js';
 import { getSettings } from '../settings.js';
 import { renderExportNotice } from '../notice.js';
-import { P, load, hrefOf, card, badge, addButton, dayText, today, blankCard } from './common.js';
+import { P, load, hrefOf, card, badge, addButton, dayText, today, blankCard, nodeDel } from './common.js';
 
 export async function render(ctx) {
   const { project } = await load(ctx.params.pid);
@@ -25,10 +26,10 @@ export async function render(ctx) {
     const places = sum.nodes.filter((n) => n.type === 'place' && n.parentId === s.id && !blank.has(n.id));
     const routes = sum.nodes.filter((n) => n.type === 'route' && n.parentId === s.id && !blank.has(n.id));
     const ids = new Set(places.map((p) => p.id));
-    const lacks = miss.filter((m) => ids.has(m.placeId) && m.text !== '완료 표시 전').length;
+    const lacks = lackItems(miss).filter((m) => ids.has(m.placeId) || (m.node.type === 'route' && m.node.parentId === s.id)).length;   // 장소 + 설치 지점 + 경로(입력 현황 요약과 같은 기준)
     let right;
-    if (!places.length) right = badge('plain', '장소 없음');
-    else if (lacks) right = badge('no', '! 빠진 값 ' + lacks);
+    if (lacks) right = badge('no', '! 미작성 항목 ' + lacks);      // 미작성 항목 > 완료
+    else if (!places.length) right = badge('plain', '장소 없음');
     else if (places.every((p) => val(p, 'done') === true)) right = badge('ok', '완료');
     else right = badge('plain', '완료 전');
     return card({
@@ -36,6 +37,7 @@ export async function render(ctx) {
       title: nameOf(s),
       sub: '장소 ' + places.length + ' · 경로 ' + routes.length + ' · 사진 ' + count(s.path),
       right,
+      del: nodeDel(s, nameOf(s), ctx),
     });
   });
 
@@ -44,7 +46,7 @@ export async function render(ctx) {
     h('p', { class: 'sec' }, '현장'),
     cards.length ? cards : h('p', { class: 'empty' }, '현장이 없습니다. 아래에서 추가해 주세요.'),
     addButton('+ 현장 추가', async () => {
-      const name = await promptText({ title: '현장 추가', label: '현장(공장·법인) 이름을 넣어 주세요.', placeholder: '예: A동', ok: '추가' });
+      const name = await promptText({ title: '현장 추가', label: '현장(공장·법인) 이름을 넣어 주세요.', placeholder: '예: 여수1공장', ok: '추가' });
       if (!name) return;
       const s = await addNode(project, 'site', { name });
       ctx.go(hrefOf(s));

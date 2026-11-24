@@ -68,7 +68,7 @@ export const DEVICE_POS = ['U 위치', '선반', '랙 바닥'];
 // 자유 추가
 export const EXTRA_TAGS = ['UPS', '액세스플로어', '분전반', '공조', '트레이·배관', '소화설비', '단자함'];
 
-// 공사 조건
+// NW공사 (예전 이름 "공사 조건" — 데이터 키는 cond_* 그대로)
 export const CEILING = ['노출 천장', '텍스', '기밀 천장'];
 export const TRAY_ROOM = ['여유 있음', '꽉 참', '재사용 어려움'];
 export const RACK_SPOT = ['바닥 자리 있음', '벽부만 가능', '자리 없음', '이중마루'];
@@ -79,7 +79,7 @@ export const WORK_CONDS = ['고소 작업', '고소차 필요', '가동 중 작�
 // 케이블 종류: [화면 글자, 수를 넣는 항목 이름, 단위]. 고른 종류는 route.cable(배열), 수는 각 항목(숫자)에 넣는다.
 //   "확인 못 함"(UNKNOWN)은 다른 종류와 같이 고를 수 없다(form.js multi 가 자동으로 붙이고 혼자만 남긴다).
 export const CABLE_KINDS = [['광 SM', 'cableSm', '코어'], ['광 MM', 'cableMm', '코어'], ['UTP', 'cableUtp', '가닥']];
-export const CABLE_CORES = [4, 6, 12, 24, 48];            // 광 코어 수 빠른 값
+export const CABLE_CORES = [4, 6, 12, 24, 48, 72, 96];    // 광 코어 수 빠른 값
 export const ROUTE_WAYS = ['기존 트레이', '새 트레이', '배관', '천장 속', '노출', '옥외', '지중'];
 export const ROUTE_RISE = ['EPS·샤프트 있음', '기존 관통부 있음', '상승 없음'];
 export const ROUTE_FIRE = ['방화구획 통과'];
@@ -87,7 +87,7 @@ export const ROUTE_PROBLEMS = ['장애물·우회', '기존 케이블 철거', '
 
 // 사진 칸 이름(slot) — 화면 글자
 export const SLOT_LABELS = {
-  overview: '전경', nameplate: '문패·명판', handnote: '손글씨 대응표', cond: '공사 조건',
+  overview: '전경', nameplate: '문패·명판', handnote: '손글씨 대응표', cond: 'NW공사',
   front: '전면 전체', rear: '후면 전체', closeup: '장비 근접', label: 'Hostname·랙 이름 라벨',
   outer: '함체 외관', inner: '함체 내부', asset: '자산 스티커', ipscreen: '단말 IP 화면',
   photo: '사진', path: '케이블 경로 사진',

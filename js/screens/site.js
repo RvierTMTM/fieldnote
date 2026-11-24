@@ -1,13 +1,15 @@
 /* screens/site.js — 현장: 장소 목록과 케이블 경로 목록   라우트: #/p/:pid/s/:id
    공개: render(ctx), addPlaceFlow(site, ctx), addRouteFlow(site, ctx, from?), pickRouteEnd(projectId, title, opts),
          routeCard(route, count, miss, blankIds, ctx)
-   · 미작성 카드(store.isBlankNode)에는 [지우기]가 붙는다(common.blankCard).
-   · 배지: 빠진 값이 있으면 노란 "! …", 완료를 눌렀으면 초록 "완료", 아니면 회색 "완료 전". */
+   · 장소·경로 카드마다 [삭제](common.nodeDel / 미작성 카드는 common.blankCard — 미작성이면 바로, 아니면 확인 창 한 번).
+   · 장소 카드는 [옮기기] [삭제] 한 묶음(common.nodeDel → js/node-edit.js 옮기기 흐름을 바로 시작).
+   · 배지: 미작성 항목이 있으면 노란 "! 미작성 항목 N", 완료를 눌렀으면 초록 "완료", 아니면 회색 "완료 전".
+   · 경로 카드 거리: 숫자면 "약 12m", "확인 못 함"이면 "거리 확인 못 함", 비었으면 생략(store.distText). */
 import { h, sheet, promptText, savedMark } from '../ui.js';
-import { children, projectSummary, missingItems, photoCounter, addNode, nameOf, val, cableText } from '../store.js';
+import { children, projectSummary, missingItems, photoCounter, addNode, nameOf, val, cableText, usable, distText } from '../store.js';
 import { renderForm } from '../form.js';
 import { PLACE_KINDS } from '../options.js';
-import { P, load, hrefOf, crumbsOf, card, addButton, blankCard, doneBadge, placeChoices } from './common.js';
+import { P, load, hrefOf, crumbsOf, card, addButton, blankCard, doneBadge, placeChoices, nodeDel } from './common.js';
 
 export async function addPlaceFlow(site, ctx) {
   let kind = await sheet({
@@ -51,15 +53,15 @@ export async function addRouteFlow(site, ctx, from) {
 export function routeCard(route, count, miss, blankIds, ctx) {
   if (blankIds && blankIds.has(route.id)) return blankCard({ href: hrefOf(route), title: nameOf(route), node: route, ctx });
   const lack = miss.find((m) => m.node.id === route.id);
-  const dist = val(route, 'dist');
   const bits = [];
-  if (typeof dist === 'number') bits.push('약 ' + dist + 'm');
+  if (distText(val(route, 'dist'))) bits.push(distText(val(route, 'dist')));
   bits.push('사진 ' + count(route.path));
   return card({
     href: hrefOf(route),
     title: nameOf(route),
     sub: [cableText(route), bits.join(' · ')],
     right: doneBadge(lack && lack.text, val(route, 'done') === true),
+    del: nodeDel(route, nameOf(route), ctx),
   });
 }
 
@@ -76,12 +78,13 @@ export async function render(ctx) {
     if (blank.has(p.id)) return blankCard({ href: hrefOf(p), title: nameOf(p), node: p, ctx });
     const points = sum.nodes.filter((n) => n.type === 'point' && n.parentId === p.id && !blank.has(n.id)).length;
     const lacks = miss.filter((m) => m.placeId === p.id && m.text !== '완료 표시 전').length;
-    const where = [val(p, 'bldg'), val(p, 'floor')].filter(Boolean).join(' ');
+    const where = [usable(val(p, 'bldg')), usable(val(p, 'floor'))].filter(Boolean).join(' ');   // "확인 못 함"·"없음"은 붙이지 않는다
     return card({
       href: hrefOf(p),
       title: nameOf(p),
       sub: [where, '설치 지점 ' + points, '사진 ' + count(p.path)].filter(Boolean).join(' · '),
-      right: doneBadge(lacks ? '빠진 값 ' + lacks : null, val(p, 'done') === true),
+      right: doneBadge(lacks ? '미작성 항목 ' + lacks : null, val(p, 'done') === true),
+      del: nodeDel(p, nameOf(p), ctx),
     });
   });
 

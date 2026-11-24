@@ -1,18 +1,20 @@
 /* store.js — 사업·현장·장소·설치 지점·장비·경로·사진을 다루는 업무 함수 (저장은 js/db.js)
    공개:
-     uid(), stamp(), val(node,key), nameOf(node), deviceLabel(node), pickLabel(value), cableText(route)
+     uid(), stamp(), val(node,key), nameOf(node), deviceLabel(node), deviceRowLabel(node), pickLabel(value), cableText(route),
+     distText(dist), locParts(place), condHiddenKeys(place)
      사업: listProjects(), getProject(id), createProject({name,from,to}), markExported(id), receiveProject(payload)
      노드: getNode(id), children(parentId,type), projectNodes(pid), addNode(parent,type,fields,extra),
-           setField(nodeId,key,value), removeNodeDeep(id), chainOf(node)
+           setField(nodeId,key,value), removeNodeDeep(id), chainOf(node),
+           renameNode(nodeId,name), moveNode(nodeId,newParentId), MOVE_PARENT, usable(v)
      사진: addPhoto(rec), listPhotos(ownerPath,slot), getPhoto(id), putPhoto(rec,{changed}), reorderPhotos(ids), deletePhoto(id),
            deletePhotosOfSlot(ownerPath,slot), photoKeys(pid), photoCounter(keys), countUnexportedPhotos(pid)
-     집계: projectSummary(pid), missingItems(pid), isBlankNode(node, nodes, keys)
+     집계: projectSummary(pid), missingItems(pid), lackItems(miss), isBlankNode(node, nodes, keys)
      작은 값: kvGet(k), kvSet(k,v)
    값 기록: 노드의 모든 항목은 data[key] = { v, by, at } 로 저장한다(누가·언제).
             setField 만 쓰면 자동으로 붙는다. 지운 값도 { v:null, … } 로 남긴다. */
 import * as db from './db.js';
 import { getSettings } from './settings.js';
-import { CABLE_KINDS, UNKNOWN } from './options.js';
+import { CABLE_KINDS, NONE, UNKNOWN } from './options.js';
 
 let seq = 0;
 
@@ -31,6 +33,13 @@ export function stamp() {
 export function val(node, key) {
   const f = node && node.data && node.data[key];
   return f ? f.v : undefined;
+}
+
+/** 다른 글자 옆에 붙여 쓸 수 있는 값이면 글자로, 비었거나 "없음"·"확인 못 함"이면 '' (카드 부제·머리말 조각용) */
+export function usable(v) {
+  if (v == null || v === '' || v === NONE || v === UNKNOWN) return '';
+  const t = typeof v === 'object' ? pickLabel(v) : String(v);
+  return t === NONE || t === UNKNOWN ? '' : t.trim();
 }
 
 /** 목록에서 고른 값({ ref, label }) 또는 글자를 화면 글자로 */
@@ -60,28 +69,83 @@ export function cableText(node) {
   }).join(' · ');
 }
 
-/** 장비를 한 줄로: "스위치 L3 24포트 · FA-BB-01" */
+/** 장비를 한 줄로: "스위치 L3 24포트 · FA-BB-01"
+    이름 조각 = Hostname, 비었거나 "확인 못 함"이면 모델명, 그것도 없으면 종류만. 규격에도 "확인 못 함"은 붙이지 않는다. */
 export function deviceLabel(node) {
   const kind = val(node, 'kind') || '장비';
   const parts = [kind];
   if (kind === '스위치') {
-    if (val(node, 'layer') && val(node, 'layer') !== '모름') parts.push(val(node, 'layer'));
-    if (val(node, 'ports')) parts.push(val(node, 'ports'));
+    const layer = usable(val(node, 'layer'));
+    if (layer && layer !== '모름') parts.push(layer);
+    if (usable(val(node, 'ports'))) parts.push(usable(val(node, 'ports')));
   } else if (kind === 'FDF') {
     if (typeof val(node, 'cores') === 'number') parts.push(val(node, 'cores') + '코어');
   } else if (kind === '패치판넬') {
-    if (val(node, 'ports')) parts.push(val(node, 'ports'));
+    if (usable(val(node, 'ports'))) parts.push(usable(val(node, 'ports')));
   } else if (kind === '통신사장비') {
-    if (val(node, 'carrier')) parts.push(val(node, 'carrier'));
+    if (usable(val(node, 'carrier'))) parts.push(usable(val(node, 'carrier')));
   }
-  const host = val(node, 'hostname') || val(node, 'model');
+  const host = usable(val(node, 'hostname')) || usable(val(node, 'model'));
   return parts.join(' ') + (host ? ' · ' + host : '');
 }
 
+/** 가상 랙 줄·장비 카드에 쓰는 이름. FDF·패치판넬은 이름 조각을 Hostname → 첫 선번 줄의 라벨 원문 또는 행선지(연결처) → 모델명 순으로 고르고,
+    그 밖의 장비는 deviceLabel 과 같다. 예: "FDF 24코어 · BD-6블럭1~16", "패치판넬 48포트 · OA 01-24" */
+export function deviceRowLabel(node) {
+  const kind = val(node, 'kind');
+  if (kind !== 'FDF' && kind !== '패치판넬') return deviceLabel(node);
+  const rows = val(node, kind === 'FDF' ? 'fdfLines' : 'utpLines');
+  let line = '';
+  if (Array.isArray(rows)) {
+    for (const r of rows) {
+      const t = (r && (usable(r.labelText) || usable(r.dest))) || '';
+      if (t) { line = t; break; }
+    }
+  }
+  if (!line || usable(val(node, 'hostname'))) return deviceLabel(node);
+  const head = [kind];
+  if (kind === 'FDF' && typeof val(node, 'cores') === 'number') head.push(val(node, 'cores') + '코어');
+  if (kind === '패치판넬' && usable(val(node, 'ports'))) head.push(usable(val(node, 'ports')));
+  return head.join(' ') + ' · ' + line;
+}
+
+/** 경로 거리를 한 줄 글로: 숫자면 "약 12m", "확인 못 함"이면 "거리 확인 못 함", 비었거나 그 밖의 글이면 '' (생략) */
+export function distText(v) {
+  if (typeof v === 'number' && Number.isFinite(v)) return '약 ' + v + 'm';
+  if (typeof v === 'string') {
+    const t = v.trim();
+    if (t === UNKNOWN) return '거리 확인 못 함';
+    if (/^\d+(\.\d+)?$/.test(t)) return '약 ' + t + 'm';
+  }
+  return '';
+}
+
+/** 장소의 동·층 조각들. 장소 이름에 이미 들어 있는 조각은 뺀다(예: 이름 "A동 2F 전산실"이면 "(A동 2F)"를 또 붙이지 않는다).
+    조각 안에 괄호가 있으면("1.5F(중층)", "폐수처리장(옥외 별동)") 괄호 앞뒤를 따로 보아 이름에 이미 있는 말은 빼고, 남은 말만 "·"로 잇는다
+    — 덧붙인 글에 괄호가 또 생겨 "(…(…))" 로 겹치지 않게. 예: 이름 "건과공장 1.5F 정비반" + 층 "1.5F(중층)" → ["중층"] */
+export function locParts(place) {
+  const name = nameOf(place);
+  const out = [];
+  for (const raw of [usable(val(place, 'bldg')), usable(val(place, 'floor'))]) {
+    if (!raw || name.includes(raw)) continue;
+    const segs = raw.split(/\s*[()（）]\s*/).map((x) => x.trim()).filter(Boolean).filter((x) => !name.includes(x));
+    const t = segs.join('·');
+    if (t && !out.includes(t)) out.push(t);
+  }
+  return out;
+}
+
+/** NW공사 "기존 트레이"가 "없음"이면 숨기는 항목(값은 지우지 않고 표시만 뺀다) */
+export function condHiddenKeys(place) {
+  return val(place, 'cond_tray') === NONE ? ['cond_trayW', 'cond_trayRoom'] : [];
+}
+
 /* ── 사업 ─────────────────────────────────────────────── */
+/** 실사 목록: 만든 때와 링크로 받은(다시 받은) 때(receivedAt, v0.30) 중 나중 것이 최근인 순서 */
 export async function listProjects() {
   const list = await db.getAll('projects');
-  return list.sort((a, b) => b.createdAt - a.createdAt);
+  const at = (p) => Math.max(p.createdAt || 0, p.receivedAt || 0);
+  return list.sort((a, b) => at(b) - at(a));
 }
 export function getProject(id) { return db.get('projects', id); }
 
@@ -147,7 +211,58 @@ export async function setField(nodeId, key, value) {
   });
   if (!node) throw new Error('저장할 대상을 찾지 못했습니다.');
   await touch(node.projectId);
+  if (key === 'name' && node.type === 'place') await syncPlaceLabels(node);
+  if (node.type === 'device' && DEVICE_LABEL_KEYS.includes(key)) await syncDeviceLabels(node);
   return node;
+}
+
+/** 장소 이름이 바뀌면 그 장소를 id 로 가리키는 값의 글자(label)도 같이 바꾼다:
+    케이블 경로 출발·도착, FDF 선번장·UTP 선번장 줄의 행선지·연결처. (id 참조라 옮겨도 그대로 유효하고, 이름만 따라 바뀐다) */
+async function syncPlaceLabels(place) {
+  const label = nameOf(place);
+  const same = (v) => v && typeof v === 'object' && !Array.isArray(v) && v.ref === place.id;
+  for (const n of await projectNodes(place.projectId)) {
+    let changed = false;
+    const data = n.data || {};
+    if (n.type === 'route') {
+      for (const k of ['from', 'to']) {
+        const f = data[k];
+        if (f && same(f.v) && f.v.label !== label) { f.v = { ...f.v, label }; changed = true; }
+      }
+    } else if (n.type === 'device') {
+      for (const k of ['fdfLines', 'utpLines']) {
+        const f = data[k];
+        if (!f || !Array.isArray(f.v)) continue;
+        for (const r of f.v) if (r && same(r.dest) && r.dest.label !== label) { r.dest = { ...r.dest, label }; changed = true; }
+      }
+    }
+    if (changed) await db.put('nodes', n);
+  }
+}
+
+/* 장비 표시 이름(deviceLabel)을 이루는 항목 — 이 값이 바뀌면 그 장비를 가리키는 업링크 글자도 따라 바꾼다 */
+const DEVICE_LABEL_KEYS = ['hostname', 'model', 'kind', 'layer', 'ports', 'cores', 'carrier'];
+
+/** 장비 이름(Hostname → 모델명 → 종류)이 바뀌면 그 장비를 id 로 가리키는 값의 글자(label)도 같이 바꾼다:
+    다른 장비의 업링크 { ref, label }. (syncPlaceLabels 의 장비용) */
+async function syncDeviceLabels(device) {
+  const label = deviceLabel(device);
+  for (const n of await projectNodes(device.projectId)) {
+    if (n.type !== 'device' || n.id === device.id) continue;
+    const f = n.data && n.data.uplink;
+    const v = f && f.v;
+    if (v && typeof v === 'object' && !Array.isArray(v) && v.ref === device.id && v.label !== label) {
+      f.v = { ...v, label };
+      await db.put('nodes', n);
+    }
+  }
+}
+
+/** 이름 바꾸기: 현장·장소·설치 지점은 name, 장비는 Hostname(hostname). 고친 노드를 돌려준다. */
+export async function renameNode(nodeId, name) {
+  const node = await getNode(nodeId);
+  if (!node || !['site', 'place', 'point', 'device'].includes(node.type)) throw new Error('이름을 바꿀 수 없는 항목입니다.');
+  return setField(nodeId, node.type === 'device' ? 'hostname' : 'name', name);
 }
 
 /** 사업부터 이 노드의 부모까지: [현장, 장소, …] (자기 자신 제외) */
@@ -162,7 +277,7 @@ export async function chainOf(node) {
 }
 
 /** 노드와 그 아래 노드·사진을 바로 지운다(되살릴 수 없음).
-    경고창·휴지통 보관은 js/trash.js(SA-B)가 이 함수 앞에서 처리한다. */
+    화면의 삭제는 이 함수를 쓰지 않는다 — js/trash.js deleteNode 가 휴지통(14일)에 넣고 지운다. */
 export async function removeNodeDeep(nodeId) {
   const node = await getNode(nodeId);
   if (!node) return { nodes: 0, photos: 0 };
@@ -174,6 +289,97 @@ export async function removeNodeDeep(nodeId) {
   await db.delMany('nodes', sub.map((k) => k.primaryKey).concat(node.id));
   await touch(node.projectId);
   return { nodes: sub.length + 1, photos: photoIds.length };
+}
+
+/* ── 상위 옮기기 ──────────────────────────────────────── */
+/** 옮길 수 있는 노드 종류 → 새 상위의 종류. 장소 → 다른 현장, 설치 지점 → 다른 장소, 장비 → 다른 설치 지점 */
+export const MOVE_PARENT = { place: 'site', point: 'place', device: 'point' };
+
+/** 노드를 다른 상위 아래로 옮긴다(같은 실사 안). 한 트랜잭션으로 아래 것을 전부 따라 바꾼다:
+    · nodes   옮긴 노드 parentId·order(새 상위 형제들의 최대 order + 1 = 맨 끝), 옮긴 노드와 그 아래 모든 노드의 path(앞부분 교체)
+    · photos  옮긴 노드와 그 아래 노드에 달린 사진의 ownerPath(같은 앞부분 교체)
+    · trash   휴지통 항목(node·reset·photo)의 path, payload 안 노드 path·사진 ownerPath, 위치 글(label)의 앞부분
+    · 장비를 옮기면 U 위치(u)·놓인 자리(pos) 값을 비운다(새 설치 지점이 랙이면 "위치가 정해지지 않은 장비"로 나온다)
+    id 로 가리키는 값(케이블 경로 출발·도착, FDF·UTP 선번장 연결처, 업링크)과 사진 칸 이름(slot)은 path 를 쓰지 않아 그대로 유효하다.
+    돌려주는 값: 옮긴 노드 */
+export async function moveNode(nodeId, newParentId) {
+  const node = await getNode(nodeId);
+  if (!node || !MOVE_PARENT[node.type]) throw new Error('옮길 수 없는 항목입니다.');
+  const parent = await getNode(newParentId);
+  if (!parent || parent.projectId !== node.projectId || parent.type !== MOVE_PARENT[node.type]) throw new Error('옮길 곳이 올바르지 않습니다.');
+  if (parent.id === node.parentId) return node;
+  const oldPath = node.path;
+  const newPath = parent.path + '/' + node.id;
+  const now = Date.now();
+  const byId = new Map((await projectNodes(node.projectId)).map((n) => [n.id, n]));
+  const sibs = [...byId.values()].filter((n) => n.parentId === parent.id && n.id !== node.id);
+  const newOrder = sibs.length ? Math.max(...sibs.map((n) => n.order || 0)) + 1 : node.order;   // 새 상위 아래 맨 끝에 놓는다
+  const chain = (path, skipSites) => path.split('/').slice(1).map((id) => byId.get(id))
+    .filter((n) => n && !(skipSites && n.type === 'site')).map(nameOf).join(' · ');
+  const labelFix = [[chain(oldPath), chain(newPath)], [chain(oldPath, true), chain(newPath, true)]];   // [전체 위치 글, 현장 뺀 위치 글]
+  const remap = (p) => (typeof p === 'string' && (p === oldPath || p.startsWith(oldPath + '/')) ? newPath + p.slice(oldPath.length) : p);
+
+  const d = await db.openDb();
+  await new Promise((resolve, reject) => {
+    const t = d.transaction(['nodes', 'photos', 'trash', 'projects'], 'readwrite');
+    t.oncomplete = () => resolve();
+    t.onerror = () => reject(t.error);
+    t.onabort = () => reject(t.error || new Error('저장이 취소되었습니다.'));
+    const ns = t.objectStore('nodes');
+    const ps = t.objectStore('photos');
+    const ts = t.objectStore('trash');
+
+    const rootReq = ns.get(node.id);
+    rootReq.onsuccess = () => {
+      const v = rootReq.result;
+      if (!v) return;
+      v.parentId = parent.id;
+      v.path = newPath;
+      v.order = newOrder;
+      v.updatedAt = now;
+      if (v.type === 'device') {
+        for (const k of ['u', 'pos']) if (v.data && v.data[k] && v.data[k].v != null) v.data[k] = { v: null, ...stamp() };
+      }
+      ns.put(v);
+    };
+    const subReq = ns.index('path').getAll(db.under(oldPath));
+    subReq.onsuccess = () => subReq.result.forEach((v) => { v.path = remap(v.path); ns.put(v); });
+
+    for (const range of [IDBKeyRange.only(oldPath), db.under(oldPath)]) {
+      const cur = ps.index('ownerPath').openCursor(range);
+      cur.onsuccess = () => {
+        const c = cur.result;
+        if (!c) return;
+        const v = c.value;
+        v.ownerPath = remap(v.ownerPath);
+        c.update(v);
+        c.continue();
+      };
+    }
+
+    const trReq = ts.index('projectId').getAll(IDBKeyRange.only(node.projectId));
+    trReq.onsuccess = () => {
+      for (const rec of trReq.result) {
+        if (rec.kind === 'project') continue;
+        let hit = false;
+        const re = (p) => { const q = remap(p); if (q !== p) hit = true; return q; };
+        if (rec.path) rec.path = re(rec.path);
+        const pl = rec.payload || {};
+        for (const n of pl.nodes || []) n.path = re(n.path);
+        for (const n of pl.removed || []) n.path = re(n.path);
+        for (const p of pl.photos || []) p.ownerPath = re(p.ownerPath);
+        if (pl.photo) pl.photo.ownerPath = re(pl.photo.ownerPath);
+        if (!hit) continue;
+        const [from, to] = labelFix[rec.kind === 'reset' ? 1 : 0];
+        if (from && typeof rec.label === 'string' && rec.label.startsWith(from)) rec.label = to + rec.label.slice(from.length);
+        ts.put(rec);
+      }
+    };
+
+    const prReq = t.objectStore('projects').get(node.projectId);
+    prReq.onsuccess = () => { if (prReq.result) { prReq.result.changedAt = now; t.objectStore('projects').put(prReq.result); } };
+  });
+  return getNode(node.id);
 }
 
 /* ── 사진 ─────────────────────────────────────────────── */
@@ -310,7 +516,12 @@ export function isBlankNode(node, nodes, keys) {
   return !keys.some((k) => k.ownerPath === node.path || k.ownerPath.startsWith(pre));
 }
 
-/** 빠진 것 목록 → [{ node, placeId, text }]
+/** 배지·요약에 세는 미작성 항목: 완료 표시 전은 뺀다. 홈 현장 카드 배지·입력 현황 요약·장소 카드 배지·좌측 메뉴 상태가 모두 이 기준
+    (장소 + 설치 지점 + 케이블 경로 전부 포함)으로 센다. miss = missingItems 결과 */
+export const NOT_DONE_TEXT = '완료 표시 전';
+export const lackItems = (miss) => miss.filter((m) => m.text !== NOT_DONE_TEXT);
+
+/** 미작성 항목 목록 → [{ node, placeId, text }]  (화면 글자는 "미작성 항목", 코드 이름은 missingItems 그대로)
     기준(최소): 장소에 완료 표시가 없음 / 랙 전면 전체 없음 / 랙 후면 전체도 없고 못 찍은 사유도 없음 /
                 경로에 출발 없음 · 도착 없음 · 거리 없음 (이 순서)
     미작성 노드(isBlankNode)도 빼지 않는다 — 필요하면 projectSummary 의 blankIds 로 거른다. */
@@ -354,6 +565,7 @@ export async function receiveProject(payload) {
   let addedSites = 0;
   let addedPlaces = 0;
   const sites = await children(project.id, 'site');
+  const allPlaces = (await projectNodes(project.id)).filter((n) => n.type === 'place');   // 다른 현장으로 옮긴 장소도 같은 것으로 본다
   for (const s of payload.sites) {
     let site = (s.id && sites.find((x) => x.linkId === s.id)) || sites.find((x) => same(val(x, 'name'), s.name));
     if (!site) {
@@ -363,7 +575,7 @@ export async function receiveProject(payload) {
     }
     const places = await children(site.id, 'place');
     for (const q of s.places) {
-      const found = (q.id && places.find((x) => x.linkId === q.id)) || places.find((x) => same(val(x, 'name'), q.name));
+      const found = (q.id && (places.find((x) => x.linkId === q.id) || allPlaces.find((x) => x.linkId === q.id))) || places.find((x) => same(val(x, 'name'), q.name));
       if (!found) {
         const place = await addNode(site, 'place', { name: q.name, kind: q.kind }, { linkId: q.id || undefined, meta });
         places.push(place);
@@ -371,7 +583,8 @@ export async function receiveProject(payload) {
       }
     }
   }
-  await db.update('projects', project.id, (p) => { p.linkAt = Date.now(); });
+  // receivedAt(v0.30): 링크로 받거나 다시 받은 때 — 실사 목록 순서와 "방금 받음" 표시에 쓴다(DB 버전은 그대로, 필드만 더함)
+  await db.update('projects', project.id, (p) => { const now = Date.now(); p.linkAt = now; p.receivedAt = now; });
   return { projectId: project.id, name: project.name, isNew, addedSites, addedPlaces };
 }
 

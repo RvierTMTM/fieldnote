@@ -19,7 +19,7 @@ export async function renderExportNotice(container, projectId) {
   const href = exportHref(projectId);
   fill(container, n > 0
     ? h('a', { class: 'warn', href }, h('b', null, '! 아직 안 보낸 사진 ' + n + '장'), '실사 종료 후 반드시 내보내기 하세요 ›')
-    : h('a', { class: 'hint', href, style: 'display:block' }, '실사 종료 후 반드시 내보내기 하세요 ›'));
+    : h('a', { class: 'hint', href }, '실사 종료 후 반드시 내보내기 하세요 ›'));
 }
 
 export async function afterDoneChange(projectId) {

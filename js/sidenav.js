@@ -4,19 +4,19 @@
      폭이 바뀌면(폴드 접기·펴기, 화면 돌리기) 바로 켜고 끈다. 켜지면 #app 에 sn-on 클래스(css/sidenav.css).
    · 트리: 홈 › 현장 › 장소 › 설치 지점 / 케이블 경로 › 구간 / 내보내기 › 입력 현황 · 장표 미리보기
      장비·자유 추가는 넣지 않는다(그 화면에서는 위 설치 지점·장소를 지금 위치로 본다).
-   · 상태: 완료(사용자가 누름) 초록 점 / 빠진 값 노란 ! / 완료 전 회색 빈 원 / 미작성(isBlankNode) 표시 없음.
+   · 상태: 완료(사용자가 누름) 초록 점 / 미작성 항목 노란 ! / 완료 전 회색 빈 원 / 미작성(isBlankNode) 표시 없음.
      판단은 화면 카드 배지와 같다(home.js·site.js·place.js·preview-status.js).
    · 지금 화면 항목은 파랑. 다른 화면으로 옮길 때 지금 위치까지 자동으로 펼친다.
      접고 편 상태는 sessionStorage 'fn.sidenav.<실사 ID>' 에 둔다(읽기·쓰기 실패는 무시).
-   · 지우기 기능 없음(미작성 [지우기]는 오른쪽 목록 카드에만).
+   · 삭제 기능 없음(목록 카드의 [삭제]는 오른쪽 화면에만).
    · 화면을 다시 그리지 않는 입력(글자·사진 등) 뒤에도 잠시 뒤 상태를 다시 읽는다. */
 import { h } from './ui.js';
-import { projectNodes, photoKeys, missingItems, isBlankNode, nameOf, val } from './store.js';
+import { projectNodes, photoKeys, missingItems, lackItems, NOT_DONE_TEXT, isBlankNode, nameOf, val } from './store.js';
 import { P, hrefOf } from './screens/common.js';
 
 const WIDE = '(min-width: 720px)';
-const NOT_DONE = '완료 표시 전';
-const ST_LABEL = { ok: '완료', no: '빠진 값 있음', plain: '완료 전' };
+const NOT_DONE = NOT_DONE_TEXT;
+const ST_LABEL = { ok: '완료', no: '미작성 항목 있음', plain: '완료 전' };
 const DEFAULT_OPEN = ['home', 'routes', 'export'];
 
 const mq = window.matchMedia ? window.matchMedia(WIDE) : null;
@@ -102,6 +102,7 @@ async function buildTree(id) {
       else if (real.some((p) => p.st === 'no')) st = 'no';
       else st = real.every((p) => p.done) ? 'ok' : 'plain';
     }
+    if (st !== 'no' && !blank(s) && lackItems(miss).some((m) => m.node.type === 'route' && m.node.parentId === s.id)) st = 'no';   // 홈 현장 카드 배지와 같게: 이 현장 경로의 미작성 항목도 센다
     return { key: s.id, label: nameOf(s), href: hrefOf(s), st, parent: 'home', kids: places };
   };
   const sites = of(id, 'site');
@@ -111,7 +112,7 @@ async function buildTree(id) {
     if (!blank(r)) st = miss.some((m) => m.node.id === r.id) ? 'no' : doneOf(r) ? 'ok' : 'plain';
     return { key: r.id, label: nameOf(r), href: hrefOf(r), st, parent: 'routes' };
   });
-  const lacks = miss.filter((m) => m.text !== NOT_DONE).length;
+  const lacks = lackItems(miss).length;
   const base = P(id);
   const top = [
     { key: 'home', label: '홈', href: base, top: true, kids: sites.map(siteItem) },
