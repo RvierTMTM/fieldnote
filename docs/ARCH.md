@@ -499,7 +499,7 @@ docs/ARCH.md            이 문서
 
 ## 14. v0.31 · v0.32 — 실사샘플 받기 · 버전 표시 (export.js, app.js, index.html, css/app.css, sw.js)
 ### v0.31 실사샘플
-- 링크를 드라이브 보기 화면 대신 `https://drive.google.com/uc?export=download&id=…` 로 열어 zip 이 다운로드 폴더에 바로 받아지게 했다(드라이브 앱·계정 고르기 없이). 받은 뒤 안내: 압축 풀지 말 것, 알림의 '열기' 누르지 말 것, 자료복구에서 zip 고르기(v0.32 문구).
+- 링크를 드라이브 보기 화면 대신 바로 내려받기 주소로 열어(v0.33부터 `https://drive.usercontent.google.com/download?id=…&export=download` — `drive.google.com` 주소는 안드로이드에서 드라이브 앱이 가로채 zip 을 열어 버림) zip 이 다운로드 폴더에 바로 받아지게 했다(드라이브 앱·계정 고르기 없이). 받은 뒤 안내: 압축 풀지 말 것, 알림의 '열기' 누르지 말 것, 자료복구에서 zip 고르기(v0.32 문구).
 - 대전 샘플을 사진 43장(실사보고서 별첨 사진, PPT 속 원본 그대로) 든 새 드라이브 파일로 바꿨다(ID 는 SAMPLES). 옛 파일(사진 없음)은 쓰지 않는다.
 - 앱이 zip 을 직접 받아 바로 넣는 방식은 쓸 수 없다: 브라우저가 보내는 Sec-Fetch(cors·cross-site·empty) 조합에 구글이 403 을 준다(curl 로 머리글별 확인, 배포판 주소에서 실제 브라우저로도 막힘 — v0.32 시험).
 ### v0.32 버전 표시 · 업데이트 필요

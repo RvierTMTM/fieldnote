@@ -593,7 +593,8 @@ async function importFile(file, ctx) {
    zip 이 다운로드 폴더에 바로 받아지게 하고(드라이브 앱·계정 고르기 화면 없이), 받은 zip 은 사용자가 자료복구로 연다.
    앱이 zip 을 직접 받아 바로 넣는 방식은 구글이 다른 사이트의 직접 받기(CORS)를 막아 쓸 수 없다(v0.32 시험, 배포판 주소에서도 막힘).
    드라이브 공유 범위는 드라이브에서 정한다. 파일을 바꾸면 아래 ID 를 바꾼다. */
-const driveDownload = (id) => 'https://drive.google.com/uc?export=download&id=' + id;
+// v0.33: drive.google.com 주소는 안드로이드에서 드라이브 앱이 가로채 zip 을 열어 버린다 → 실제 파일 주소(크롬이 받아 저장만 함)
+const driveDownload = (id) => 'https://drive.usercontent.google.com/download?id=' + id + '&export=download';
 export const SAMPLES = [
   { label: '여수공장 실사샘플', sub: '사진 74장 · 9.4MB', url: driveDownload('1CzkLQx7gUuh3JblB3G6SvmDNE8zF-GnA') },
   { label: '대전공장 실사샘플', sub: '사진 43장 · 16.7MB', url: driveDownload('1Ghk8zqUAv5rLuQ_uxkgFYzw9NjnPtSCK') },
