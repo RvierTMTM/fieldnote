@@ -480,7 +480,7 @@ docs/ARCH.md            이 문서
 
 ### 2. 바탕 "자동"
 - settings.theme 'auto'(기본) | 'light' | 'dark'. light·dark 는 html[data-theme], 자동은 속성 없음 → `prefers-color-scheme` 을 따른다. 어두운 값은 app.css 에 두 번(검은 바탕 · 자동+폰 어두움) 같은 값으로 있다.
-- 이미 설정이 저장된 폰은 그 값을 그대로 쓴다(예전 앱은 설정을 저장할 때 theme:'light' 까지 함께 저장했으므로 대부분 밝은 바탕 그대로).
+- 예전 앱은 설정을 저장할 때 theme:'light' 까지 함께 저장했다. 그래서 `settings.js` 가 처음 열 때 한 번만(표시 `themeAuto30`) 'light' → 'auto' 로 바꾼다(리버 결정). 그 뒤 사용자가 고른 '밝게'·'어둡게'는 그대로 둔다.
 
 ### 3. 글자 자동 축소(ui.fitText)
 - 최소 0.8125rem(보통 13px). 넘침 판정을 Range 의 실제 글자 폭(소수점)으로 하고 줄일 때 0.5px 여유를 둔다 — 정수 scrollWidth 때문에 끝 1~3글자가 "…"로 남던 문제 고침.
@@ -494,5 +494,16 @@ docs/ARCH.md            이 문서
 - 실사정보 배포(`js/screens/distribute.js`, 라우트 `#/p/:pid/distribute`): 이 폰의 실사 현장·장소로 링크·QR을 바로 만든다. ID는 linkId가 있으면 그것, 없으면 노드 ID. 링크 주소는 github.io·localhost면 지금 주소, 그 밖(시험판)은 배포판 주소.
 - 관리자 기능(`js/admin.js`): 화면 설정에서 암호(SHA-256 비교)로 켠다. 켠 폰의 실사 안 더보기 맨 위에 "실사정보 배포". 서버가 없어 진짜 잠금은 아니다(실수로 켜는 것만 막음).
 - QR 모듈은 `tools/qr.js` → `js/qr.js`로 옮겼다(tools/link.html 도 이것을 쓴다).
-- 실사샘플 받기(`js/export.js` SAMPLES·openSamples·sampleButton): 실사 선택·더보기·내보내기에서 구글 드라이브 화면을 연다. 예시 zip은 공개 repo에 넣지 않는다.
+- 실사샘플 받기(`js/export.js` SAMPLES·openSamples·sampleButton): 실사 선택·더보기·내보내기에서 구글 드라이브 "바로 내려받기" 주소(v0.31)를 새 창으로 연다. 예시 zip은 공개 repo에 넣지 않는다.
 - `copyText`는 `js/ui.js`로 옮겨 같이 쓴다.
+
+## 14. v0.31 · v0.32 — 실사샘플 받기 · 버전 표시 (export.js, app.js, index.html, css/app.css, sw.js)
+### v0.31 실사샘플
+- 링크를 드라이브 보기 화면 대신 `https://drive.google.com/uc?export=download&id=…` 로 열어 zip 이 다운로드 폴더에 바로 받아지게 했다(드라이브 앱·계정 고르기 없이). 받은 뒤 안내: 압축 풀지 말 것, 알림의 '열기' 누르지 말 것, 자료복구에서 zip 고르기(v0.32 문구).
+- 대전 샘플을 사진 43장(실사보고서 별첨 사진, PPT 속 원본 그대로) 든 새 드라이브 파일로 바꿨다(ID 는 SAMPLES). 옛 파일(사진 없음)은 쓰지 않는다.
+- 앱이 zip 을 직접 받아 바로 넣는 방식은 쓸 수 없다: 브라우저가 보내는 Sec-Fetch(cors·cross-site·empty) 조합에 구글이 403 을 준다(curl 로 머리글별 확인, 배포판 주소에서 실제 브라우저로도 막힘 — v0.32 시험).
+### v0.32 버전 표시 · 업데이트 필요
+- `#brand` 안 CI 오른쪽에 `#ver`(APP_VERSION, 보조 글자)와 `#verupd`("업데이트 필요", 평소 숨김). CI 는 실사 선택 화면(s.brand)에만 있다.
+- 새 버전 판단: ① 서비스 워커가 새 파일을 받아 기다림(waiting) — 기존 "새 버전이 있습니다" 줄과 같은 신호(showUpdateBar 가 #verupd 도 보임) ② 실사 선택 화면을 열 때(60초에 한 번) `js/version.js?fresh=…` 를 받아 APP_VERSION 이 더 높으면. `sw.js` 는 `fresh` 가 붙은 요청을 가로채지 않는다(저장본 대신 네트워크).
+- 누르면 applyUpdate: 입력 저장 → waiting 이 없으면 reg.update() 후 최대 60초 기다림(버튼 "받는 중…") → SKIP_WAITING → 새로 고침.
+- 시험(헤드리스): 서버 버전을 올리면 버튼이 뜨고, 누르면 새 버전으로 바뀌고 버튼이 사라짐.
