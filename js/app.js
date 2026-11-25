@@ -8,6 +8,7 @@
    · 화면 위 묶음(#top) 높이를 CSS 변수 --toph 에 넣는다(.saved-top 이 그 아래에 붙어 있게).
    · 앱 안 브라우저(카톡 등)에서 실사 링크(#p=)를 열면, 링크를 받기 전에 "크롬으로 열기" 안내 화면을 먼저 띄운다(v0.30, inAppGate).
      기록은 브라우저마다 따로 저장되므로, 카톡 안에서 받으면 홈 화면 앱(크롬)에는 새 실사가 보이지 않는다.
+     v0.36: 아이폰이면 "사파리나 크롬에서 열어 주세요"(카톡 바깥 열기는 기본 브라우저로 간다 — 추측, 실기기 확인 안 됨).
      v0.35: 앱 주소만 열어도(실사 링크가 아니어도) 앱 안 브라우저면 같은 안내를 먼저 띄운다(boot). 카톡 [크롬으로 열기]는 실기기 확인됨(v0.34).
    라우트 목록은 아래 addRoute 줄과 docs/ARCH.md 를 본다. */
 import { h, alertDialog, promptText, fitText, fitPending, openOverlay, closeOverlay, toast, closeX, copyText } from './ui.js';
@@ -17,7 +18,7 @@ import { flushPending } from './form.js';
 import { releaseUrls } from './photo-slot.js';
 import { decodeProjectLink } from './link.js';
 import { receiveProject, getProject } from './store.js';
-import { initInstall } from './install.js';
+import { initInstall, isIOS } from './install.js';
 import { showGuide } from './guide.js';
 import { openMore } from './screens/more.js';
 import { renderTrash, purgeExpired } from './trash.js';
@@ -174,7 +175,8 @@ function openInChrome(url) {
     location.href = 'intent://' + u.host + u.pathname + u.search + u.hash + '#Intent;scheme=https;package=com.android.chrome;end';   // 실기기 확인 안 됨
     return;
   }
-  copyText(url).then((ok) => toast(ok ? '주소를 복사했습니다. 크롬에 붙여 넣어 주세요' : '주소를 복사하지 못했습니다. 크롬에서 직접 열어 주세요'));
+  const b = isIOS() ? '사파리나 크롬' : '크롬';
+  copyText(url).then((ok) => toast(ok ? '주소를 복사했습니다. ' + b + '에 붙여 넣어 주세요' : '주소를 복사하지 못했습니다. ' + b + '에서 직접 열어 주세요'));
 }
 
 /** 앱 안 브라우저면 안내 화면을 띄우고, [여기서 그냥 열기](또는 닫기)를 누를 때까지 기다린다 */
@@ -182,12 +184,13 @@ function inAppGate() {
   if (!isInApp()) return Promise.resolve();
   const url = location.href;
   const where = isKakao() ? '카톡' : '이 앱';
+  const b = isIOS() ? '사파리나 크롬' : '크롬';   // v0.36
   return new Promise((resolve) => {
     const box = h('div', { class: 'gd', role: 'dialog', 'aria-modal': 'true', 'aria-label': '크롬에서 열어 주세요' },
-      h('div', { class: 'dlg-h' }, h('b', null, '크롬에서 열어 주세요'), closeX()),
-      h('p', null, where + ' 안에서 열면 기록이 이 화면에만 저장됩니다. 크롬에서 열어 주세요.'),
+      h('div', { class: 'dlg-h' }, h('b', null, b + '에서 열어 주세요'), closeX()),
+      h('p', null, where + ' 안에서 열면 기록이 이 화면에만 저장됩니다. ' + b + '에서 열어 주세요.'),
       h('div', { class: 'sp' }),
-      h('button', { type: 'button', class: 'btn pri', onclick: () => openInChrome(url) }, '크롬으로 열기'),
+      h('button', { type: 'button', class: 'btn pri', onclick: () => openInChrome(url) }, isIOS() ? '사파리·크롬으로 열기' : '크롬으로 열기'),
       h('button', { type: 'button', class: 'btn sub', onclick: () => closeOverlay() }, '여기서 그냥 열기'));
     openOverlay(box, { kind: 'full', onClose: () => resolve() });
   });
