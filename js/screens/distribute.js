@@ -1,5 +1,6 @@
-/* screens/distribute.js — 실사정보 배포(v0.30, 관리자 기능을 켠 폰에서만 더보기에 보임)   라우트: #/p/:pid/distribute
-   공개: render(ctx)
+/* screens/distribute.js — 실사정보 배포(v0.30, 관리자 기능을 켠 기기에서만 보임)   라우트: #/p/:pid/distribute
+   들어오는 곳: 실사 선택 화면 더보기 → 실사정보 배포 → 이 기기의 실사 고르기(v0.34, js/screens/more.js)
+   공개: render(ctx), linkToolUrl(), openLinkTool(url)
    · 이 폰에 있는 실사의 현장·장소로 실사 링크와 QR을 바로 만든다(따로 입력하지 않음).
    · 링크에 들어가는 것: 실사 ID·실사명·기간·현장 이름·장소 이름·종류(사진·입력값은 없음). 형식은 js/link.js.
    · ID: 링크로 받은 현장·장소는 그 링크 ID(linkId)를, 이 폰에서 만든 것은 노드 ID를 쓴다
@@ -10,7 +11,6 @@ import { getProject, children, val } from '../store.js';
 import { encodeProjectLink, buildLinkUrl } from '../link.js';
 import { qrSvg, QR_MAX_BYTES } from '../qr.js';
 import { isAdmin } from '../admin.js';
-import { P } from './common.js';
 
 const PAGES_URL = 'https://rviertmtm.github.io/fieldnote/';
 
@@ -20,6 +20,15 @@ function appUrl() {
   return PAGES_URL;
 }
 
+/** 목록 입력 페이지(tools/link.html) 주소 — 배포판·이 PC에서는 같은 사이트, 그 밖(시험판 등)에서는 배포판 */
+export const linkToolUrl = () => new URL('tools/link.html', appUrl()).href;
+
+/** 목록 입력 페이지 열기: 같은 사이트면 이 창에서(앱으로 설치한 창 안), 아니면 새 창 */
+export function openLinkTool(url) {
+  if (new URL(url).origin === location.origin) location.assign(url);
+  else window.open(url, '_blank', 'noopener');
+}
+
 const linkIdOf = (n) => n.linkId || n.id;
 
 export async function render(ctx) {
@@ -27,10 +36,10 @@ export async function render(ctx) {
   if (!project) throw new Error('실사를 찾을 수 없습니다.');
   const base = {
     title: '실사정보 배포', sub: project.name, menu: null,
-    crumbs: [{ label: '‹ 홈', href: P(project.id) }, { label: '실사정보 배포' }],
+    crumbs: [{ label: '‹ 실사 선택', href: '#/' }, { label: '실사정보 배포' }],
   };
   if (!isAdmin()) {
-    return { ...base, body: [h('p', { class: 'empty' }, '관리자 기능을 켠 폰에서만 쓸 수 있습니다.\n더보기 → 화면 설정에서 켜 주세요.')] };
+    return { ...base, body: [h('p', { class: 'empty' }, '관리자 기능을 켠 기기에서만 쓸 수 있습니다.\n더보기 → 화면 설정에서 켜 주세요.')] };
   }
 
   const sites = await children(project.id, 'site');

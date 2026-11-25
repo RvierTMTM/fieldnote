@@ -34,7 +34,7 @@ export async function render(ctx) {
     h('p', { class: 'hint' }, '입력한 값마다 이 이름이 함께 기록됩니다.'),
     h('p', { class: 'sec' }, '관리자 기능'),
     isAdmin()
-      ? [h('p', { class: 'hint' }, '켜져 있습니다. 실사 안 더보기에 "실사정보 배포"가 보입니다.'),
+      ? [h('p', { class: 'hint' }, '켜져 있습니다. 실사 선택 화면 더보기에 "실사정보 배포"가 보입니다.'),
          h('button', { type: 'button', class: 'btn sub', onclick: () => { lockAdmin(); toast('관리자 기능을 껐습니다.'); ctx.refresh(); } }, '관리자 기능 끄기')]
       : [h('p', { class: 'hint' }, '실사정보를 배포하는 사람만 켭니다. 암호가 필요합니다.'),
          h('button', { type: 'button', class: 'btn sub', onclick: async () => {
