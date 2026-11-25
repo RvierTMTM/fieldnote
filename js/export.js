@@ -530,10 +530,14 @@ export async function importModel(input, opts = {}) {
     step(40 + (58 * ++k) / Math.max(1, photos.length), '사진 ' + k + ' / ' + photos.length);
     if (!mp || !mp.id) continue;
     const local = await db.get('photos', mp.id);
+    // v0.41: 파일 조각(slice)을 그대로 저장하면 아이폰(WebKit)은 고른 zip 파일을 가리키는 표시만 남길 수 있다
+    //        → 고르기가 끝나 임시 파일이 지워지면 크게 보기에서 사진이 깨진다. 실제 바이트로 읽어 새 Blob 으로 저장한다(사진 한 장씩).
     const getFile = async (path, type) => {
       if (!zip || !path) return null;
       const e = zip.find(path);
-      return e ? zip.blob(e, type || '') : null;
+      if (!e) return null;
+      const b = await zip.blob(e, type || '');
+      return new Blob([await b.arrayBuffer()], { type: type || b.type || '' });
     };
     const corrBlob = mp.correctedFile ? await getFile(mp.correctedFile, mp.correctedType || 'image/jpeg') : null;
     const corrected = corrBlob ? { ...(mp.corrected || {}), blob: corrBlob } : null;
@@ -550,7 +554,7 @@ export async function importModel(input, opts = {}) {
     }
     const blob = await getFile(mp.file, mp.type || 'image/jpeg');
     if (!blob) { missingFiles++; continue; }
-    // IndexedDB 에 넣을 때 복사된다. 파일 조각(slice)을 그대로 넘겨 메모리를 아낀다.
+    // blob 은 getFile 에서 실제 바이트로 읽은 것(v0.41)
     await db.put('photos', {
       id: mp.id, projectId: pid, ownerPath: mapPath(mp.ownerPath), slot: mp.slot, order: mp.order || 0,
       blob, thumb: await makeThumb(corrBlob || blob), source: mp.source === 'gallery' ? 'gallery' : 'camera',
