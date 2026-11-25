@@ -2,9 +2,11 @@
    공개: render(ctx)
    · 카드마다 "내보냄 / 아직 안 내보냄" 표시
    · 실사 기간이 지난 실사는 "지난 실사"로 따로 묶는다(입력을 막지는 않는다)
+   · [실사 링크 붙여 넣기](v0.40, js/receive.js): 복사한 실사 링크로 받기 — 아이폰 사파리 홈 화면 앱처럼 링크를 열어도 앱으로 안 오는 곳용
    · 실사 카드마다 [삭제](js/trash.js deleteProject — 미작성이면 바로, 아니면 확인 창 한 번. 기한 규칙 없음)
    · 순서: 만든 때·링크로 받은 때 중 나중 것이 위(store.listProjects). 링크로 받은 지 24시간 안이면 "방금 받음" 표시(v0.30) */
-import { h, promptText } from '../ui.js';
+import { h, promptText, alertDialog } from '../ui.js';
+import { findLinkCode, receiveCode } from '../receive.js';
 import { listProjects, projectSummary, createProject } from '../store.js';
 import { getSettings } from '../settings.js';
 import { installButton } from '../install.js';
@@ -47,10 +49,22 @@ export async function render(ctx) {
     const p = await createProject({ name });
     ctx.go(P(p.id));
   }));
+  body.push(h('button', { type: 'button', class: 'btn sub', onclick: () => pasteLink(ctx) }, '실사 링크 붙여 넣기'));
   body.push(importButton(ctx, '자료복구'), sampleButton(),
     h('p', { class: 'hint' }, '내보낸 zip 파일(또는 기록 파일)을 골라 실사 기록을 되살립니다. 실사샘플은 드라이브에서 받은 뒤 자료복구로 엽니다.'));
   const install = installButton();
   if (install) body.push(install);
 
   return { title: '실사 선택', sub: getSettings().surveyor || '', brand: true, menu: null, crumbs: null, body };
+}
+
+/** 실사 링크 붙여 넣기(v0.40): 링크를 열 수 없는 곳(아이폰 사파리 홈 화면 앱 등)에서 복사한 링크로 받는다 */
+async function pasteLink(ctx) {
+  const text = await promptText({ title: '실사 링크 붙여 넣기', label: '받은 실사 링크를 붙여 넣어 주세요. 메시지를 통째로 붙여 넣어도 됩니다.', placeholder: 'https://…#p=…', ok: '받기' });
+  if (!text) return;
+  const code = findLinkCode(text);
+  if (!code) { await alertDialog('실사 링크 붙여 넣기', '실사 링크를 찾지 못했습니다.\n받은 링크 전체를 복사했는지 확인해 주세요.'); return; }
+  const r = await receiveCode(code);
+  await ctx.go(r.route);
+  await alertDialog('실사 링크', r.notice);
 }

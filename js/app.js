@@ -16,9 +16,9 @@ import { addRoute, setApply, setLinkHandler, onBeforeRender, startRouter, go, re
 import { applySettings, getSettings, setSetting } from './settings.js';
 import { flushPending } from './form.js';
 import { releaseUrls } from './photo-slot.js';
-import { decodeProjectLink } from './link.js';
-import { receiveProject, getProject } from './store.js';
-import { initInstall, isIOS } from './install.js';
+import { getProject } from './store.js';
+import { receiveCode } from './receive.js';
+import { initInstall, isIOS, isStandalone } from './install.js';
 import { showGuide } from './guide.js';
 import { openMore } from './screens/more.js';
 import { renderTrash, purgeExpired } from './trash.js';
@@ -197,27 +197,16 @@ function inAppGate() {
 }
 
 /* ── 사업 링크(#p=…) 받기 ─────────────────────────────── */
+// 받기 자체는 js/receive.js(붙여 넣기와 같이 씀). v0.40: 아이폰 사파리(홈 화면 앱이 아님)에서 받으면 붙여 넣기 안내를 덧붙인다.
+const isIOSSafari = () => isIOS() && !isStandalone() && !/CriOS|FxiOS|EdgiOS/i.test(navigator.userAgent || '');
 async function handleLink(code) {
   await inAppGate();
-  try {
-    const payload = await decodeProjectLink(code);
-    const r = await receiveProject(payload);
-    if (r.isNew) {
-      pendingNotice = '새 실사가 추가되었습니다.\n' + r.name + '\n현장 ' + r.addedSites + '곳 · 장소 ' + r.addedPlaces + '곳';
-    } else if (r.addedSites || r.addedPlaces) {
-      const parts = [];
-      if (r.addedSites) parts.push('새 현장 ' + r.addedSites + '곳');
-      if (r.addedPlaces) parts.push('새 장소 ' + r.addedPlaces + '곳');
-      pendingNotice = r.name + '\n' + parts.join(', ') + ' 추가됨\n이미 입력한 내용은 그대로입니다.';
-    } else {
-      pendingNotice = r.name + '\n이미 받은 실사입니다. 새로 추가된 곳이 없습니다.';
-    }
-    return P(r.projectId);
-  } catch (e) {
-    console.error(e);
-    pendingNotice = '실사 링크를 읽지 못했습니다.\n링크가 중간에 잘리지 않았는지 확인해 주세요.';
-    return '#/';
+  const r = await receiveCode(code);
+  pendingNotice = r.notice;
+  if (r.route !== '#/' && isIOSSafari()) {
+    pendingNotice += '\n\n아이폰 사파리: 홈 화면 아이콘으로 쓰려면 이 링크를 복사해 앱 첫 화면의 "실사 링크 붙여 넣기"에 넣어 주세요.';
   }
+  return r.route;
 }
 
 /* ── 새 버전 알림 줄 ──────────────────────────────────── */
