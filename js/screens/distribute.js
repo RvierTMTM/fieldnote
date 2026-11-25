@@ -1,6 +1,6 @@
 /* screens/distribute.js — 실사정보 배포(v0.30, 관리자 기능을 켠 기기에서만 보임)   라우트: #/p/:pid/distribute
    들어오는 곳: 실사 선택 화면 더보기 → 실사정보 배포 → 이 기기의 실사 고르기(v0.34, js/screens/more.js)
-   공개: render(ctx), linkToolUrl(), openLinkTool(url)
+   공개: render(ctx), renderApp(ctx)(앱만 보내기, #/distribute-app, v0.35), linkToolUrl(), openLinkTool(url)
    · 이 폰에 있는 실사의 현장·장소로 실사 링크와 QR을 바로 만든다(따로 입력하지 않음).
    · 링크에 들어가는 것: 실사 ID·실사명·기간·현장 이름·장소 이름·종류(사진·입력값은 없음). 형식은 js/link.js.
    · ID: 링크로 받은 현장·장소는 그 링크 ID(linkId)를, 이 폰에서 만든 것은 노드 ID를 쓴다
@@ -94,6 +94,35 @@ export async function render(ctx) {
     data.sites.map((s) => h('div', { class: 'card' },
       h('b', null, s.name),
       h('p', { class: 'hint' }, s.places.length ? s.places.map((q) => q.name).join(' · ') : '장소 없음'))),
+  ];
+  return { ...base, body };
+}
+
+/** 앱만 보내기(v0.35): 실사 없이 앱 주소만 QR·공유·복사. 받은 사람은 빈 실사 선택 화면에서 시작한다. */
+export async function renderApp() {
+  const base = {
+    title: '앱만 보내기', sub: '실사 없이 앱 주소만', menu: null,
+    crumbs: [{ label: '‹ 실사 선택', href: '#/' }, { label: '앱만 보내기' }],
+  };
+  if (!isAdmin()) {
+    return { ...base, body: [h('p', { class: 'empty' }, '관리자 기능을 켠 기기에서만 쓸 수 있습니다.\n더보기 → 화면 설정에서 켜 주세요.')] };
+  }
+  const url = new URL('./', appUrl()).href;
+  let qr = null;
+  try { qr = qrSvg(url); } catch (e) { console.warn('QR 만들기 실패', e); }
+  const text = '현장실사 앱입니다. 크롬에서 열고 첫 화면의 홈 화면에 추가를 눌러 주세요.';
+  const share = async () => {
+    try { await navigator.share({ title: '현장실사 앱', text, url }); }
+    catch (e) { if (e && e.name !== 'AbortError') toast('공유 창을 열지 못했습니다. 링크 복사를 써 주세요.'); }
+  };
+  const copy = async () => toast((await copyText(url)) ? '링크를 복사했습니다.' : '링크를 복사하지 못했습니다.');
+  const body = [
+    h('p', { class: 'hint' }, '실사가 없는 빈 앱이 열립니다. 실사는 나중에 실사 링크·QR로 보내면 추가됩니다.'),
+    qr ? h('div', { class: 'card dist-qr' }, qr) : null,
+    navigator.share ? h('button', { type: 'button', class: 'btn pri', onclick: share }, '공유하기 (카톡 등)') : null,
+    h('button', { type: 'button', class: navigator.share ? 'btn sub' : 'btn pri', onclick: copy }, '링크 복사'),
+    h('p', { class: 'hint' }, url),
+    h('p', { class: 'hint' }, '받은 사람이 카톡 안에서 열면 "크롬에서 열어 주세요" 안내가 먼저 뜹니다. 크롬에서 첫 화면의 홈 화면에 추가를 누르면 아이콘이 생깁니다.'),
   ];
   return { ...base, body };
 }

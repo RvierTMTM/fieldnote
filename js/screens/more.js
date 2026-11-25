@@ -2,7 +2,7 @@
    공개: openMore(screen, ctx)     screen = 지금 화면 객체, ctx = { go, refresh }
    항목: 화면 설정 / 사용 안내 / 자료복구 / 실사샘플 받기 / 홈 화면에 추가(앱처럼 열려 있으면 숨김)
          + 관리자 기능을 켠 기기의 실사 밖(실사 선택 화면)에서는 맨 위에 "실사정보 배포"(v0.34, 실사 안에서는 뺐다)
-           → 새로 만들기(목록 입력, tools/link.html) / 이 기기의 실사 고르기(js/screens/distribute.js)
+           → 앱만 보내기(v0.35, #/distribute-app) / 새로 만들기(목록 입력, tools/link.html) / 이 기기의 실사 고르기(js/screens/distribute.js)
          + 현장·장소·설치 지점·장비 화면에서는 js/node-edit.js 의 editItems(scope) (이름 바꾸기·다른 곳으로 옮기기)
          + 실사 안에서는 js/trash.js 의 moreItems(scope) (입력 초기화·휴지통·삭제 — SA-B)
          + 실사 밖(실사 목록 등)에서는 "휴지통"(#/trash, 삭제한 실사 되살리기) */
@@ -44,13 +44,17 @@ export async function openMore(screen, ctx) {
   else if (scope) await runMoreItem(pick, scope, ctx);
 }
 
-/** 실사정보 배포 고르기(v0.34): 새로 만들기(목록 입력 페이지) 또는 이 기기의 실사 */
+/** 실사정보 배포 고르기(v0.34): 앱만 보내기(v0.35) · 새로 만들기(목록 입력 페이지) · 이 기기의 실사 */
 async function pickDistribute(ctx) {
   const list = await listProjects();
-  const items = [{ label: '새로 만들기 (목록 입력)', sub: '실사명·기간·현장·장소를 직접 넣어 링크 만들기', value: 'new' }];
+  const items = [
+    { label: '앱만 보내기 (빈 화면)', sub: '실사 없이 앱 주소만 보내기', value: 'app' },
+    { label: '새로 만들기 (목록 입력)', sub: '실사명·기간·현장·장소를 직접 넣어 링크 만들기', value: 'new' },
+  ];
   for (const p of list) items.push({ label: p.name, sub: '이 기기의 실사 · 현장·장소 그대로 보내기', value: 'p:' + p.id });
   const pick = await sheet({ title: '실사정보 배포', items });
   if (pick === undefined) return;
-  if (pick === 'new') openLinkTool(linkToolUrl());
+  if (pick === 'app') ctx.go('#/distribute-app');
+  else if (pick === 'new') openLinkTool(linkToolUrl());
   else ctx.go(P(String(pick).slice(2)) + '/distribute');
 }

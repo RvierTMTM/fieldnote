@@ -8,6 +8,7 @@
    · 화면 위 묶음(#top) 높이를 CSS 변수 --toph 에 넣는다(.saved-top 이 그 아래에 붙어 있게).
    · 앱 안 브라우저(카톡 등)에서 실사 링크(#p=)를 열면, 링크를 받기 전에 "크롬으로 열기" 안내 화면을 먼저 띄운다(v0.30, inAppGate).
      기록은 브라우저마다 따로 저장되므로, 카톡 안에서 받으면 홈 화면 앱(크롬)에는 새 실사가 보이지 않는다.
+     v0.35: 앱 주소만 열어도(실사 링크가 아니어도) 앱 안 브라우저면 같은 안내를 먼저 띄운다(boot). 카톡 [크롬으로 열기]는 실기기 확인됨(v0.34).
    라우트 목록은 아래 addRoute 줄과 docs/ARCH.md 를 본다. */
 import { h, alertDialog, promptText, fitText, fitPending, openOverlay, closeOverlay, toast, closeX, copyText } from './ui.js';
 import { addRoute, setApply, setLinkHandler, onBeforeRender, startRouter, go, refresh } from './router.js';
@@ -46,6 +47,7 @@ let pendingNotice = null;  // 사업 링크를 받은 결과 알림
 /* ── 라우트 ───────────────────────────────────────────── */
 addRoute('/', projects.render);                    // 사업 목록
 addRoute('/settings', settingsScreen.render);      // 화면 설정
+addRoute('/distribute-app', distribute.renderApp); // 앱만 보내기(관리자, v0.35)
 addRoute('/p/:pid', home.render);                  // 홈(현장 카드)
 addRoute('/p/:pid/s/:id', site.render);            // 현장(장소·경로 목록)
 addRoute('/p/:pid/pl/:id', place.render);          // 장소
@@ -158,7 +160,7 @@ function showPendingNotice() {
    카톡·네이버·인스타 등 앱 안 브라우저는 크롬과 저장소가 따로라, 거기서 링크를 받으면 기록이 그 앱 안에만 남는다.
    [크롬으로 열기]  카톡: kakaotalk://web/openExternal?url=…  /  안드로이드: intent://…#Intent;scheme=https;package=com.android.chrome;end
                     그 밖: 주소를 복사하고 안내(토스트).
-   ※ kakaotalk://web/openExternal 과 intent:// 로 크롬이 실제로 열리는지는 실기기에서 확인하지 않았다(확인되지 않음).
+   ※ kakaotalk://web/openExternal 은 실기기에서 바깥 브라우저로 넘어가는 것을 확인했다(v0.34). intent:// 는 확인되지 않음.
    [여기서 그냥 열기] 안내를 닫고 평소처럼 링크를 받는다. 창을 ✕·뒤로 가기로 닫아도 같다. */
 const IN_APP_RE = /KAKAOTALK|NAVER\(inapp|Instagram|FBAN|FBAV|\bLine\/|DaumApps|everytimeApp|\bBAND\//i;
 const isKakao = () => /KAKAOTALK/i.test(navigator.userAgent || '');
@@ -166,7 +168,7 @@ const isInApp = () => IN_APP_RE.test(navigator.userAgent || '');
 
 function openInChrome(url) {
   const ua = navigator.userAgent || '';
-  if (isKakao()) { location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(url); return; }   // 실기기 확인 안 됨
+  if (isKakao()) { location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(url); return; }   // 실기기 확인됨(v0.34, 갤럭시 폴드7 · 카톡 26.10)
   if (/Android/i.test(ua)) {
     const u = new URL(url);
     location.href = 'intent://' + u.host + u.pathname + u.search + u.hash + '#Intent;scheme=https;package=com.android.chrome;end';   // 실기기 확인 안 됨
@@ -182,7 +184,7 @@ function inAppGate() {
   const where = isKakao() ? '카톡' : '이 앱';
   return new Promise((resolve) => {
     const box = h('div', { class: 'gd', role: 'dialog', 'aria-modal': 'true', 'aria-label': '크롬에서 열어 주세요' },
-      h('div', { class: 'dlg-h' }, h('b', null, '실사 링크'), closeX()),
+      h('div', { class: 'dlg-h' }, h('b', null, '크롬에서 열어 주세요'), closeX()),
       h('p', null, where + ' 안에서 열면 기록이 이 화면에만 저장됩니다. 크롬에서 열어 주세요.'),
       h('div', { class: 'sp' }),
       h('button', { type: 'button', class: 'btn pri', onclick: () => openInChrome(url) }, '크롬으로 열기'),
@@ -306,6 +308,7 @@ async function boot() {
 
   purgeExpired().catch((e) => console.warn('휴지통 정리 실패', e));   // 14일 지난 휴지통 완전 삭제
 
+  if (!(location.hash || '').startsWith('#p=')) await inAppGate();   // v0.35: 앱 주소만 연 경우도 안내(실사 링크는 handleLink 에서)
   await startRouter();
 
   if (!getSettings().guideSeen) await showGuide();
