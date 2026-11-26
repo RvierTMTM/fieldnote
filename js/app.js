@@ -23,6 +23,7 @@ import { showGuide } from './guide.js';
 import { openMore } from './screens/more.js';
 import { renderTrash, purgeExpired } from './trash.js';
 import { canRename, renameFlow } from './node-edit.js';
+import { editProjectFlow } from './project-edit.js';
 import { P } from './screens/common.js';
 import * as projects from './screens/projects.js';
 import * as home from './screens/home.js';
@@ -108,14 +109,17 @@ function applyScreen(screen, { keepScroll }) {
   const titleEl = $('title');
   titleEl.textContent = s.title || '현장실사';
   // 현장·장소·설치 지점·장비 화면: 위 제목을 누르면 이름 바꾸기(js/node-edit.js)
+  // v0.50: 실사 홈(scope.whole, 노드 없음)은 제목을 누르면 실사 정보 바꾸기(js/project-edit.js)
   const rn = s.scope && s.scope.node && canRename(s.scope.node) ? s.scope.node : null;
-  titleEl.classList.toggle('editable', !!rn);
-  if (rn) {
+  const rp = !rn && s.scope && s.scope.whole && !s.scope.node && s.scope.project ? s.scope.project : null;
+  const onTitle = rn ? () => renameFlow(rn, { refresh }) : rp ? () => editProjectFlow(rp, { refresh }) : null;
+  titleEl.classList.toggle('editable', !!onTitle);
+  if (onTitle) {
     titleEl.setAttribute('role', 'button');
     titleEl.tabIndex = 0;
-    titleEl.setAttribute('aria-label', (s.title || '') + ' — 누르면 이름 바꾸기');
-    titleEl.onclick = () => renameFlow(rn, { refresh });
-    titleEl.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); renameFlow(rn, { refresh }); } };
+    titleEl.setAttribute('aria-label', (s.title || '') + (rn ? ' — 누르면 이름 바꾸기' : ' — 누르면 실사 정보 바꾸기'));
+    titleEl.onclick = onTitle;
+    titleEl.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTitle(); } };
   } else {
     titleEl.removeAttribute('role');
     titleEl.removeAttribute('tabindex');

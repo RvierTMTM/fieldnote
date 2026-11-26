@@ -18,13 +18,22 @@ export async function receiveCode(code) {
     let notice;
     if (r.isNew) {
       notice = '새 실사가 추가되었습니다.\n' + r.name + '\n현장 ' + r.addedSites + '곳 · 장소 ' + r.addedPlaces + '곳';
-    } else if (r.addedSites || r.addedPlaces) {
-      const parts = [];
-      if (r.addedSites) parts.push('새 현장 ' + r.addedSites + '곳');
-      if (r.addedPlaces) parts.push('새 장소 ' + r.addedPlaces + '곳');
-      notice = r.name + '\n' + parts.join(', ') + ' 추가됨\n이미 입력한 내용은 그대로입니다.';
     } else {
-      notice = r.name + '\n이미 받은 실사입니다. 새로 추가된 곳이 없습니다.';
+      // v0.50: 실사명·기간이 바뀌었으면 한 줄씩 알린다
+      const lines = [r.name];
+      if (r.renamedFrom != null) lines.push('실사명 변경: ' + r.renamedFrom + ' → ' + r.name);
+      if (r.periodChanged) lines.push('기간 변경');
+      if (r.addedSites || r.addedPlaces) {
+        const parts = [];
+        if (r.addedSites) parts.push('새 현장 ' + r.addedSites + '곳');
+        if (r.addedPlaces) parts.push('새 장소 ' + r.addedPlaces + '곳');
+        lines.push(parts.join(', ') + ' 추가됨', '이미 입력한 내용은 그대로입니다.');
+      } else if (r.renamedFrom == null && !r.periodChanged) {
+        lines.push('이미 받은 실사입니다. 새로 추가된 곳이 없습니다.');
+      } else {
+        lines.push('새로 추가된 곳은 없습니다.');
+      }
+      notice = lines.join('\n');
     }
     return { route: P(r.projectId), notice };
   } catch (e) {

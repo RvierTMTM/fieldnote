@@ -544,3 +544,9 @@ docs/ARCH.md            이 문서
 ## 20. v0.42 — PC에서 만들기 주소 보내기 (screens/distribute.js renderPc, more.js, app.js)
 - 배포 고르기 창에 **PC에서 만들기 (주소 보내기)** → `#/distribute-pc`(관리자): 목록 입력 페이지 주소(linkToolUrl — 배포판이면 `…/fieldnote/tools/link.html`) 공유하기·링크 복사. QR 없음(PC 에서 쓸 일 없음).
 - 이유: 폰의 "새로 만들기"는 그 페이지를 폰에서 열 뿐이라, 주소를 모르는 사람이 PC 로 넘길 길이 없었다.
+
+## 21. v0.50 — 실사 정보 바꾸기 · 다시 받을 때 맞추기 (project-edit.js, store.js, receive.js, app.js, more.js)
+- **실사 정보 바꾸기**(js/project-edit.js editProjectFlow): 실사명·시작일·종료일(달력, 비우면 기간 없음)을 한 창에서. 시작일 > 종료일이면 저장 안 함. 여는 곳: 실사 홈 위 제목 누르기(app.js applyScreen — scope.whole·노드 없음), 실사 안(홈) 더보기 "실사 정보 바꾸기". 저장은 store.updateProjectInfo.
+- **다시 받기**(store.receiveProject): 이미 있는 실사에 링크를 다시 받으면 실사명이 다를 때 링크 쪽 이름으로, 링크에 기간이 있고 다를 때 링크 쪽 기간으로 바꾼다. 링크에 기간이 없으면(앱에서 만든 실사) 기간은 그대로 둔다(지우려는 건지 원래 없는 건지 구분 못 함). 반환에 renamedFrom·periodChanged.
+- 알림(receive.js): "실사명 변경: 옛 → 새", "기간 변경" 줄을 더한다. 실사자가 직접 바꾼 실사명은 배포자가 다시 보내면 덮어써진다(리버 결정).
+- 배포 화면은 실사 정보를 그때 읽어 링크를 만들므로 따로 고칠 것 없음.

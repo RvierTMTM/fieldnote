@@ -2,7 +2,7 @@
    공개:
      uid(), stamp(), val(node,key), nameOf(node), deviceLabel(node), deviceRowLabel(node), pickLabel(value), cableText(route),
      distText(dist), locParts(place), condHiddenKeys(place)
-     사업: listProjects(), getProject(id), createProject({name,from,to}), markExported(id), receiveProject(payload)
+     사업: listProjects(), getProject(id), createProject({name,from,to}), markExported(id), updateProjectInfo(id,{name,from,to})(v0.50), receiveProject(payload)(v0.50: 다시 받으면 실사명·기간도 맞춤)
      노드: getNode(id), children(parentId,type), projectNodes(pid), addNode(parent,type,fields,extra),
            setField(nodeId,key,value), removeNodeDeep(id), chainOf(node),
            renameNode(nodeId,name), moveNode(nodeId,newParentId), MOVE_PARENT, usable(v)
@@ -154,6 +154,11 @@ export async function createProject({ id, name, from = null, to = null, source =
   const p = { id: id || 'm' + uid(), name, from, to, source, createdAt: now, changedAt: now, exportedAt: null, meta: stamp() };
   await db.put('projects', p);
   return p;
+}
+
+/** 실사 정보 바꾸기(v0.50): 실사명·기간. from·to 는 'YYYY-MM-DD' 또는 null */
+export function updateProjectInfo(projectId, { name, from = null, to = null }) {
+  return db.update('projects', projectId, (p) => { p.name = name; p.from = from || null; p.to = to || null; p.changedAt = Date.now(); });
 }
 
 async function touch(projectId) {
@@ -558,6 +563,21 @@ export async function receiveProject(payload) {
   const meta = { by: '실사 링크', at: Date.now() };
   let project = await getProject(payload.id);
   let isNew = false;
+  let renamedFrom = null;
+  let periodChanged = false;
+  if (project) {
+    // v0.50: 다시 받은 링크의 실사명·기간이 다르면 링크 쪽으로 맞춘다. 링크에 기간이 없으면(앱에서 만든 실사) 기간은 그대로 둔다.
+    const hasPeriod = !!(payload.from || payload.to);
+    if (payload.name && !same(project.name, payload.name)) renamedFrom = project.name;
+    if (hasPeriod && ((project.from || null) !== (payload.from || null) || (project.to || null) !== (payload.to || null))) periodChanged = true;
+    if (renamedFrom != null || periodChanged) {
+      await db.update('projects', project.id, (p) => {
+        if (renamedFrom != null) p.name = payload.name;
+        if (periodChanged) { p.from = payload.from || null; p.to = payload.to || null; }
+      });
+      project = await getProject(project.id);
+    }
+  }
   if (!project) {
     project = await createProject({ id: payload.id, name: payload.name, from: payload.from, to: payload.to, source: 'link' });
     isNew = true;
@@ -585,7 +605,7 @@ export async function receiveProject(payload) {
   }
   // receivedAt(v0.30): 링크로 받거나 다시 받은 때 — 실사 목록 순서와 "방금 받음" 표시에 쓴다(DB 버전은 그대로, 필드만 더함)
   await db.update('projects', project.id, (p) => { const now = Date.now(); p.linkAt = now; p.receivedAt = now; });
-  return { projectId: project.id, name: project.name, isNew, addedSites, addedPlaces };
+  return { projectId: project.id, name: project.name, isNew, addedSites, addedPlaces, renamedFrom, periodChanged };
 }
 
 /* ── 작은 값 ──────────────────────────────────────────── */
