@@ -49,6 +49,7 @@ let pendingNotice = null;  // 사업 링크를 받은 결과 알림
 addRoute('/', projects.render);                    // 사업 목록
 addRoute('/settings', settingsScreen.render);      // 화면 설정
 addRoute('/distribute-app', distribute.renderApp); // 앱만 보내기(관리자, v0.35)
+addRoute('/distribute-pc', distribute.renderPc);   // PC에서 만들기 주소 보내기(관리자, v0.42)
 addRoute('/p/:pid', home.render);                  // 홈(현장 카드)
 addRoute('/p/:pid/s/:id', site.render);            // 현장(장소·경로 목록)
 addRoute('/p/:pid/pl/:id', place.render);          // 장소
